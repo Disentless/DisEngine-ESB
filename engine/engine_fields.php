@@ -148,6 +148,8 @@ class StrData extends DBField {
     // String representation
     public function getValue(){
         $strSafeFormat = preg_replace("/'/", "\'", $this->value);
+        $strSafeFormat = preg_replace("/%/", "\%", $strSafeFormat);
+        $strSafeFormat = preg_replace("/_/", "\_", $strSafeFormat);
         return "'$strSafeFormat'";
     }
 }
