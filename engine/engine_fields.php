@@ -13,7 +13,7 @@ define('DEFAULT_CHECK_F_VALUE', null);
 define('DEFAULT_INT_TYPE', 'INT');
 define('DEFAULT_STR_TYPE', 'VARCHAR(45)');
 define('DEFAULT_STR_MINLENGTH', 0);
-define('DEFAULT_STR_MAXLENGTH', 0);
+define('DEFAULT_STR_MAXLENGTH', PHP_MAX_INT);
 define('DEFAULT_STR_PATTERN', '/^.*$/');
 define('DEFAULT_DATETIME_TYPE', 'DATETIME');
 
@@ -66,6 +66,11 @@ class DBField {
         // Value is correct
         $this->value = $val;
         $this->initFlag = true;
+    }
+    
+    // Return string representation of value
+    public function getValue(){
+        return $this->value;
     }
 }
 
@@ -135,8 +140,15 @@ class StrData extends DBField {
         $this->maxLength = $max;
     }
     
+    // Sets pattern to match
     public function setPattern($pattern){
         $this->pattern = $pattern;
+    }
+    
+    // String representation
+    public function getValue(){
+        $strSafeFormat = preg_replace("/'/", "\'", $this->value);
+        return "'$strSafeFormat'";
     }
 }
 
@@ -171,6 +183,11 @@ class DateTimeData extends DBField {
     public function setRange($low, $high){
         $this->low = $low;
         $this->high = $high;
+    }
+    
+    // String representation
+    public function getValue(){
+        return "'{$this->value}'";
     }
 }
 
