@@ -26,6 +26,7 @@ class Database {
         $this->init = false;
         $this->conLost = false;
         $this->transaction = false;
+        $this->insert_id = -1;
     }
     
     // Checks whether connections are possible.
@@ -34,6 +35,9 @@ class Database {
         
         return true;
     }
+    
+    /* Public */
+    public $insert_id;
     
     /*Public methods*/
     
@@ -106,6 +110,8 @@ class Database {
         if (!$this->checkCon()) return false;
         
         if ($result = $this->mysqli->query($query)){
+            // Update insert id
+            $this->insert_id = $this->mysqli->insert_id;
             // Return mysqli_result
             return $result;
         } else {
@@ -138,7 +144,11 @@ class Database {
                 return false;
             } else {
                 // All is okay
+                // Update id
+                $this->insert_id = $this->mysqli->insert_id;
+                // Finish current transaction
                 $this->finishTransaction();
+                // Return data if required
                 return $outputResult ? $out : true;
             }
         } else {

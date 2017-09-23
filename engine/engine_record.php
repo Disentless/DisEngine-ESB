@@ -6,6 +6,7 @@ namespace DisEngine;
 
 require_once 'engine_fields.php';
 require_once 'engine_es.php';
+require_once 'engine_db.php';
 
 // A single record in a table.
 class DBRecord {
@@ -85,9 +86,36 @@ class DBRecord {
         }
         // Query is ready
         // Making request
+        global $db;
+        if (!$db->query($query)){
+            // Query failed
+            return false;
+        }
+        
+        if (!$this->exists) {
+            // Setting id
+            $this->idField->setValue($db->insert_id);
+            $this->exists = true;
+        }
         
         // Query is a success
         ServerEngine::raiseEvent($this->tableName, $eventType);
+    }
+    
+    // Deletes record from DB
+    public function delete(){
+        // Can't delete non-existent record
+        if (!$this->exists) return false;
+        
+        // Making request
+        $query = "DELETE FROM `{$this->tableName}` WHERE `id` = {$this->idField->getValue()}";
+        global $db;
+        if (!$db->query($query)){
+            // Something went wrong: foreign key restrictions, non-existent record
+            return false;
+        }
+        
+        return true;
     }
 }
 
