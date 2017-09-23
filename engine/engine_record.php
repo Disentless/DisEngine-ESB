@@ -6,7 +6,7 @@ namespace DisEngine;
 
 require_once 'engine_fields.php';
 require_once 'engine_es.php';
-require_once 'engine_db.php';
+require_once 'engine_config.php';
 
 // A single record in a table.
 class DBRecord {
@@ -33,13 +33,17 @@ class DBRecord {
     // Fill data from assoc array, exists specifies whether or not data was taken from DB
     public function fillData($arr, $exists = false){
         foreach($arr as $field=>$value){
-            if (!isset($this->fields[$field])){
-                // Field doesn't exist
-                return false;
-            }
-            if(!$this->fields[$field]->setValue($value)){
-                // For some reason value conditions are not met
-                return false;
+            if ($field == 'id'){
+                $this->idField->setValue($value);
+            } else {
+                if (!isset($this->fields[$field])){
+                    // Field doesn't exist
+                    return false;
+                }
+                if(!$this->fields[$field]->setValue($value)){
+                    // For some reason value conditions are not met
+                    return false;
+                }
             }
         }
         $this->exists = $exists;
