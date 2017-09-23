@@ -24,7 +24,7 @@ $reqArr = $_POST['request'];
 
 // Request type mapping to classes
 $classMapping = [
-    // Data group affects a class.
+    // Data group affects a class (DBRecord) or a class group (DBRecordGroup)
     '<group1>' => '<class1>',
     '<group2>' => '<class2>'
 ];
@@ -44,18 +44,21 @@ if ($action != 'select'){
     $cl = new $className();
     // Setting data
     $cl->fillData($reqArr['data']);
+    $cl->exists = ($action == 'delete');
     // Performing action
-    if ($action == 'delete'){
-        $cl->exists = true;
-        $cl->delete();
-    } else {
-        $cl->update();
-    }
+    $requestSuccess = ($cl->exists && $cl->delete() || !$cl->exists && $cl->update());
 } else {
     // Accessing manager class
     $className = $classMapping[$group].'Manager';
     $manager = new $className();
-    // TO-DO: make manager class template
+    // Getting data
+    $requestSuccess = ($resultData = $manager->select($reqArr['data']));
+}
+
+if ($requestSuccess){
+    // success
+} else {
+    // fail
 }
 
 
