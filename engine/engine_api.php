@@ -49,17 +49,19 @@ if ($action != 'select'){
     $requestSuccess = ($cl->exists && $cl->delete() || !$cl->exists && $cl->update());
 } else {
     // Accessing manager class
-    $className = $classMapping[$group].'Manager';
-    $manager = new $className();
+    $className = $classMapping[$group].'Selector';
+    $selector = new $className();
     // Getting data
-    $requestSuccess = ($resultData = $manager->select($reqArr['data']));
+    $requestSuccess = ($resultData = $selector->select($reqArr['data']));
 }
 
-if ($requestSuccess){
-    // success
-} else {
-    // fail
-}
-
+// Output
+echo json_encode([
+    'timestamp' => time(),
+    'data' => $resultData ?? null,
+    'success' => $requestSuccess,
+    'errno' => $errno,
+    'error' => $error
+]);
 
 ?>

@@ -42,7 +42,7 @@ class DBField {
     
     // Sets external function as a custom check run on the value before assigning.
     public function setCustomCheck($val){
-        $checkF = $val;
+        $this->checkF = $val;
     }
     
     // Set $canChange property.
@@ -59,9 +59,12 @@ class DBField {
     public function setValue($val){
         if (!$this->canChange && $this->initFlag || !$this->canNull && !isset($val)) return false;
         // Wasn't initialized with value or change is allowed.
-        if (isset($val) && isset($this->checkF) && !$this->checkF($val)) {
-            // Check failed
-            return false;
+        if (isset($val) && isset($this->checkF)) {
+            $checkFName = $this->checkF;
+            if (!$checkFName($val)){
+                // Check failed
+                return false;
+            }
         }
         // Value is correct
         $this->value = $val;
@@ -154,7 +157,7 @@ class StrData extends DBField {
     }
 }
 
-// DateTime field
+// DateTime field. Keeps DateTime in its string representation.
 class DateTimeData extends DBField {
     function __construct($name, $type){
         parent::__construct($name);

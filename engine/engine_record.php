@@ -11,10 +11,10 @@ require_once 'engine_config.php';
 // A single record in a table.
 class DBRecord {
     // Properties.
-    private $tableName;   // Table name
-    private $idField;       // primary key
-    public $fields;        // Table fields (DBField)
-    public $exists;         // if true - record was created as a result of SELECT query and update will use UPDATE query, false - update will use INSERT query
+    private $tableName; // Table name
+    private $idField;   // primary key
+    public $fields;     // Table fields (DBField)
+    public $exists;     // if true - record was created as a result of SELECT query and update will use UPDATE query, false - update will use INSERT query
     
     // Constructor
     function __construct($tableName){
@@ -29,6 +29,15 @@ class DBRecord {
     }
     
     // *Methods*
+    
+    // Adds new field (DBField) - only to call from the constructor of a child class
+    protected function addField($field){
+        if (!isset($field->name)) return false;
+        
+        $fields[$field->name] = $field;
+    }
+    
+    /* Public */
     
     // Fill data from assoc array, exists specifies whether or not data was taken from DB
     public function fillData($arr, $exists = false){
@@ -48,13 +57,6 @@ class DBRecord {
         }
         $this->exists = $exists;
         return true;
-    }
-    
-    // Adds new field (DBField)
-    public function addField($field){
-        if (!isset($field->name)) return false;
-        
-        $fields[$field->name] = $field;
     }
     
     // Push changes to the DB
@@ -120,6 +122,18 @@ class DBRecord {
         }
         
         return true;
+    }
+    
+    // Sets fields based on SELECT query result. $assoc_data should be the result from MYSQLI_RESULT::fetch_assoc()
+    public function fillFromSelRes($assoc_data){
+        foreach($assoc_data as $field_name => $value){
+            if (!isset($this->fields[$field_name])){
+                // field doesn't exist - wrong input
+                return false;
+            }
+            $this->fields[$field_name]->setValue($value);
+        }
+        $this->exists = true;
     }
 }
 
