@@ -44,8 +44,22 @@ class DBRecordGroup {
         }
         $this->data[$cat][] = $cl;
     }
-        
+    
+    // Return 2 table join
+    private function joinTable($firstJOIN, $table, $fk){
+        $mainTable = $this->main->getTableName();
+        return "($firstJOIN INNER JOIN `$table` ON `$mainTable`.`id` = `$table`.`$fk`)";
+    }
+    
     /* Public */
+    // Returns JOIN operaion on all tables to later insert after FROM statement
+    public function getJOIN(){
+        $res = "`{$this->main-getTableName()}`";
+        foreach($cat_classes as $cat => $info){
+            $res = joinTable($res, $info['table'], $info['dep_field']);
+        }
+        return $res;
+    }
         
     // Flush changes to database in a single transaction
     public function update(){
