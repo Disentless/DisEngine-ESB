@@ -5,21 +5,11 @@
 
 namespace DisEngine;
 
-// Settings
-define('MAX_INT', PHP_MAX_INT);
-define('DEFAULT_CAN_NULL', false);
-define('DEFAULT_CAN_CHANGE', true);
-define('DEFAULT_CHECK_F_VALUE', null);
-define('DEFAULT_INT_TYPE', 'INT');
-define('DEFAULT_STR_TYPE', 'VARCHAR(45)');
-define('DEFAULT_STR_MINLENGTH', 0);
-define('DEFAULT_STR_MAXLENGTH', PHP_MAX_INT);
-define('DEFAULT_STR_PATTERN', '/^.*$/');
-define('DEFAULT_DATETIME_TYPE', 'DATETIME');
-
 // Base class for representing different types of data.
-class DBField {
-    function __construct($name){
+class DBField 
+{
+    function __construct(string $name)
+    {
         $this->name = $name;
         $this->canChange = DEFAULT_CAN_CHANGE;
         $this->canNull = DEFAULT_CAN_NULL;
@@ -41,22 +31,26 @@ class DBField {
     protected $initFlag;  // (bool) If true - value was assigned, false - all operations are allowed once
     
     // Sets external function as a custom check run on the value before assigning.
-    public function setCustomCheck($val){
+    public function setCustomCheck(string $val)
+    {
         $this->checkF = $val;
     }
     
     // Set $canChange property.
-    public function allowChange($val){
+    public function allowChange(bool $val)
+    {
         $this->canChange = $val;
     }
     
     // Set $canNull property.
-    public function allowNull($val){
+    public function allowNull(bool $val)
+    {
         $this->canNull = $val;
     }
     
     // Set value 
-    public function setValue($val){
+    public function setValue($val)
+    {
         if (!$this->canChange && $this->initFlag || !$this->canNull && !isset($val)) return false;
         // Wasn't initialized with value or change is allowed.
         if (isset($val) && isset($this->checkF)) {
@@ -72,14 +66,17 @@ class DBField {
     }
     
     // Return string representation of value
-    public function getValue(){
+    public function getValue()
+    {
         return $this->value;
     }
 }
 
 // Decimal field (INT)
-class NumData extends DBField {
-    function __construct($name, $type){
+class NumData extends DBField 
+{
+    function __construct(string $name, string $type)
+    {
         parent::__construct($name);
         
         $this->type = $type ?? DEFAULT_INT_TYPE;
@@ -92,7 +89,8 @@ class NumData extends DBField {
     private $max;       // Maximum value
     
     // Set value after running checks
-    public function setValue($val){
+    public function setValue($val)
+    {
         if (isset($val)){
             if (($val < $this->min || $val > $this->max)) {
                 // Check failed
@@ -103,15 +101,18 @@ class NumData extends DBField {
     }
     
     // Set range
-    public function setRange($min, $max){
+    public function setRange(int $min,int $max)
+    {
         $this->min = $min;
         $this->max = $max;
     }
 }
 
 // String field (VARCHAR/TEXT)
-class StrData extends DBField {
-    function __construct($name, $type){
+class StrData extends DBField 
+{
+    function __construct(string $name,string $type)
+    {
         parent::__construct($name);
         
         $this->type = $type ?? DEFAULT_STR_TYPE;
@@ -126,7 +127,8 @@ class StrData extends DBField {
     private $pattern;       // Specific pattern to match
     
     // Set value after running checks
-    public function setValue($val){
+    public function setValue($val)
+    {
         if (isset($val)){
             $len = mb_strlen($val);
             if ($len < $minLength || $len > $maxlength || !preg_match($pattern, $val)){
@@ -138,18 +140,21 @@ class StrData extends DBField {
     }
     
     // Methods for setting restrictions.
-    public function setLengthRange($min, $max){
+    public function setLengthRange(int $min,int $max)
+    {
         $this->minLength = $min;
         $this->maxLength = $max;
     }
     
     // Sets pattern to match
-    public function setPattern($pattern){
+    public function setPattern(string $pattern)
+    {
         $this->pattern = $pattern;
     }
     
     // String representation
-    public function getValue(){
+    public function getValue()
+    {
         $strSafeFormat = preg_replace("/'/", "\'", $this->value);
         $strSafeFormat = preg_replace("/%/", "\%", $strSafeFormat);
         $strSafeFormat = preg_replace("/_/", "\_", $strSafeFormat);
@@ -158,8 +163,10 @@ class StrData extends DBField {
 }
 
 // DateTime field. Keeps DateTime in its string representation.
-class DateTimeData extends DBField {
-    function __construct($name, $type){
+class DateTimeData extends DBField 
+{
+    function __construct(string $name,string $type)
+    {
         parent::__construct($name);
         
         $this->$type = $type ?? DEFAULT_DATETIME_TYPE;
@@ -172,7 +179,8 @@ class DateTimeData extends DBField {
     private $high;  // High limit
     
     // Set value
-    public function setValue($val){
+    public function setValue($val)
+    {
         if (isset($val)){
             $low_timestamp = strtotime($low);
             $high_timestamp = strtotime($high);
@@ -185,15 +193,15 @@ class DateTimeData extends DBField {
     }
     
     // Methods for setting restrictions.
-    public function setRange($low, $high){
+    public function setRange(int $low,int $high)
+    {
         $this->low = $low;
         $this->high = $high;
     }
     
     // String representation
-    public function getValue(){
+    public function getValue()
+    {
         return "'{$this->value}'";
     }
 }
-
-?>

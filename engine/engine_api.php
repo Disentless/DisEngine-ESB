@@ -4,11 +4,16 @@
 // Handles incoming requests.
 
 // Autoload user classes located in ./classes dir
-spl_autoload_register(function($class_name){
-    require_once 'classes/'.$class_name.'.php';
-});
+spl_autoload_register(
+    function($class_name) 
+    {
+        require_once 'classes'.DIRECTORY_SEPARATOR.$class_name.'.php';
+    }
+);
 
-// Continue session.
+require_once 'engine_config.php';
+
+// Continue session or start a new one
 session_start();
 
 // Anonymous mode (client is not logged-in or connection expired)
@@ -30,29 +35,37 @@ $classMapping = [
 ];
 
 // Routing
-$group = $reqArr['type']['group'];      // Data group to affect (accounts, schedules, lists, etc.)
-$action = $reqArr['type']['action'];    // Action to take (add, change, delete, select)
+$group = $reqArr['type']['group'];      // Data group to affect
+$action = $reqArr['type']['action'];    // Action to take
 
 if (!isset($classMapping[$group])){
     // Wrong request
     die;
 }
 
-if ($action != 'select'){
-    // Creating class instance
-    $className = $classMapping[$group];
-    $cl = new $className();
-    // Setting data
-    $cl->fillData($reqArr['data']);
-    $cl->exists = ($action == 'delete');
-    // Performing action
-    $requestSuccess = ($cl->exists && $cl->delete() || !$cl->exists && $cl->update());
-} else {
-    // Accessing manager class
-    $className = $classMapping[$group].'Selector';
-    $selector = new $className();
-    // Getting data
-    $requestSuccess = ($resultData = $selector->select($reqArr['data']));
+// Choosing which class to work with
+$className = $classMapping[$group];
+
+// Executing action
+switch($action){
+    case 'add':
+    case 'update':
+    case 'delete':
+        // Creating class instance
+        $cl = new $className();
+        // Setting data
+        $cl->fillInputData($reqArr['data'], $action != 'add');
+        // If exists
+        $exs = $cl->exists;
+        $requestSuccess = $exs && $cl->delete() || !$exs && $cl->update();
+        break;
+    case 'select':
+        // Accessing manager class
+        $className = $classMapping[$group].'Selector';
+        $selector = new $className();
+        // Getting data
+        $requestSuccess = ($resultData = $selector->select($reqArr['data']));
+        break;
 }
 
 // Output
@@ -63,5 +76,3 @@ echo json_encode([
     'errno' => $errno,
     'error' => $error
 ]);
-
-?>

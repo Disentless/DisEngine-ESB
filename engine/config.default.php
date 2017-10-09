@@ -12,5 +12,3 @@ $config['db'] = [
 ];
 
 return $config;
-
-?>

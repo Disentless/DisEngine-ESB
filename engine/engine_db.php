@@ -5,7 +5,9 @@
 
 namespace DisEngine;
 
-class Database {
+// Represents a class for database connections to MySQL server
+class Database 
+{
     /* Private */
     
     // Database connection.
@@ -22,7 +24,8 @@ class Database {
     private $transaction;   // Transaction is on the way
     
     // Creates new instance.
-    function __construct(){
+    function __construct()
+    {
         $this->init = false;
         $this->conLost = false;
         $this->transaction = false;
@@ -30,10 +33,9 @@ class Database {
     }
     
     // Checks whether connections are possible.
-    private function checkCon(){
-        if (!$this->init || $this->conLost) return false;
-        
-        return true;
+    private function checkCon()
+    {
+        return $this->init && !$this->conLost;
     }
     
     /* Public */
@@ -42,7 +44,8 @@ class Database {
     /*Public methods*/
     
     // Set connection info
-    public function setConInfo($host, $user, $psw, $schema){
+    public function setConInfo(string $host, string $user, string $psw, string $schema)
+    {
         $this->host = $host;
         $this->user = $user;
         $this->psw = $psw;
@@ -50,7 +53,8 @@ class Database {
     }
     
     // Try to connect
-    public function connect(){
+    public function connect()
+    {
         $this->mysqli = new mysqli($host, $user, $psw, $schema);
         
         if ($this->mysqli->connect_error){
@@ -64,7 +68,8 @@ class Database {
     }
     
     // Open transaction
-    public function beginTransaction(){
+    public function beginTransaction()
+    {
         if (!$this->checkCon() || $this->transaction) return false;
         
         if (!$this->mysqli->query("START TRANSACTION")){
@@ -78,7 +83,8 @@ class Database {
     }
     
     // Close transaction
-    public function finishTransaction(){
+    public function finishTransaction()
+    {
         if (!$this->checkCon() || !$this->transaction) return false;
         
         if (!$this->mysqli->query("COMMIT")){
@@ -92,7 +98,8 @@ class Database {
     }
     
     // Rollback changes
-    public function rollback(){
+    public function rollback()
+    {
         if (!$this->checkCon() || !$this->transaction) return false;
         
         if (!this->mysqli->query("ROLLBACK")){
@@ -106,7 +113,8 @@ class Database {
     }
     
     // Execute query
-    public function query($query){
+    public function query(string $query)
+    {
         if (!$this->checkCon()) return false;
         
         if ($result = $this->mysqli->query($query)){
@@ -120,7 +128,8 @@ class Database {
     }
     
     // Execute multi query, outputResuls specifies whether or not result of each statement should be returned after function succeeds
-    public function multiQuery($query, $outputResult = false){
+    public function multiQuery(string $query, bool $outputResult = false)
+    {
         // Start transaction
         $this->beginTransaction();
         
@@ -158,5 +167,3 @@ class Database {
         return $out;
     }
 }
-    
-?>

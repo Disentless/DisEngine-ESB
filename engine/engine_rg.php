@@ -4,25 +4,17 @@
 
 namespace DisEngine;
 
-// Autoload user classes located in ./classes dir
-spl_autoload_register(function($class_name){
-    require_once 'classes/'.$class_name.'.php';
-});
-
-require_once 'engine_config.php';
-require_once 'engine_lib.php';
-
-define("TABLE_FIELD_SEPARATOR", '_%|%_');   // Used to create alias for table fields
-
 // Represents a class for handling data with multiple values for a field.
 // Works with 1:n relations.
-class DBRecordGroup {
+class DBRecordGroup 
+{
     /* Static properties and methods */
-    static protected $main_class;    // Main class name
-    static protected $sub_classes;   // Dependant classes
+    protected static  $main_class;    // Main class name
+    protected static $sub_classes;   // Dependant classes
     
     // Static init
-    static protected function _init($mainClass){
+    protected static function _init(string $mainClass)
+    {
         static::$main_class = $mainClass;
         static::$sub_classes = [];
     }
@@ -31,27 +23,42 @@ class DBRecordGroup {
     // - ['table'] => <Table's name>
     // - ['class'] => <Class' name>
     // - ['fk'] => <Dependency field (foreign key)>
-    static protected function addSub($info){
+    protected static function addSub(array $info)
+    {
         static::$sub_classes[$info['table']] = $info;
     }
     
     // Return a table join with main table
-    static protected function joinTable($firstJOIN, $table, $fk){
-        $mainTable = static::$main_class::getTableName();
-        return "($firstJOIN LEFT JOIN `$table` ON `$mainTable`.`id` = `$table`.`$fk`)";
+    protected static function joinTable(
+        string $firstJOIN, 
+        string $table, 
+        string $fk
+    ) {
+        $mt = static::$main_class::getTableName();
+        return "($firstJOIN LEFT JOIN `$table` ON `$mt`.`id`=`$table`.`$fk`)";
     }
     
     // Returns the result of SELECT query on all tables with given WHERE clause
     // Result will be an array of class instances or false on fail
-    static protected function select($whereClause){
+    protected static function select(string $whereClause = '')
+    {
         // Tables projection
         $mainTable = static::$main_class::getTableName();
         $table_selection = "`$mainTable`";
         foreach(static::$sub_classes as $subcl){
-            $table_selection = joinTable($table_selection, $subcl['table'], $subcl['fk']);
+            $table_selection = self::joinTable(
+                $table_selection,
+                $subcl['table'],
+                $subcl['fk']
+            );
         }
+        $where = (strlen($whereClause) != 0) ? "WHERE $whereClause" : '';
         // Run query to get ID's of main records that satisfy conditions
-        $query = "SELECT DISTINCT `$mainTable`.`id` FROM $table_selection WHERE $whereClause";
+        $query = <<<SQL
+            SELECT DISTINCT `$mainTable`.`id` 
+            FROM $table_selection 
+            $whereClause
+        SQL;
         
         // Executing query
         global $db;
@@ -73,11 +80,15 @@ class DBRecordGroup {
                     
                     // Rounding up each vector table
                     $vectors = [];
-                    foreach(static::$sub_classes as $table_name => $sub_info){
+                    foreach(static::$sub_classes as $table_name => $sub_info) {
                         $cl_name = $sub_info['class'];
                         $fk = $sub_info['fk'];
                         // Executing query to get vector info
-                        $query = "SELECT * FROM `$table_name` WHERE `$fk` = $recID";
+                        $query = <<<SQL
+                            SELECT * 
+                            FROM `$table_name` 
+                            WHERE `$fk` = $recID
+                        SQL;
                         if ($result = $db->query($query)){
                             $list = [];
                             while($list[] = $result->fetch_assoc());
@@ -112,14 +123,16 @@ class DBRecordGroup {
     protected $main;    // Main record for this group
     
     // Constructor
-    function __construct(){
+    function __construct()
+    {
         $this->resetSub();
         $main_clname = static::$main_class;
         $this->main = new $main_clname();
     }
     
     // Reset subclasses
-    protected function resetSub(){
+    protected function resetSub()
+    {
         $this->data = [];
         foreach(static::$sub_classes as $subcl){
             $this->data[$subcl::getTableName()] = [];
@@ -127,7 +140,8 @@ class DBRecordGroup {
     }
     
     // Rewrites current object's main record properties
-    protected function fillMain($data, $exists = false){
+    protected function fillMain(array $data, bool $exists = false)
+    {
         $mainTable = static::$main_class::getTableName();
         return $this->main->fillData($data, true);
     }
@@ -135,7 +149,8 @@ class DBRecordGroup {
     // Rewrites child info
     // $data - assoc array formatted as follows:
     // [<sub table name>] - array of assoc arrays with child class properties
-    protected function fillData($data){
+    protected function fillData(array $data)
+    {
         $this->resetSub();
         foreach($data as $table => $records){
             foreach($records as $rec){
@@ -151,7 +166,8 @@ class DBRecordGroup {
     
     // Works the same as fillData but does not reset the object's state
     // or main record properties. Only appends sub classes.
-    protected function appendData($data){
+    protected function appendData(array $data)
+    {
         // Sub instances
         foreach($data as $table => $records){
             foreach($records as $rec){
@@ -168,7 +184,8 @@ class DBRecordGroup {
     /* Public */
     
     // Flush changes to database in a single transaction
-    public function update(){
+    public function update()
+    {
         if (!isset($this->main)) return false;
         // Starting database transation
         global $db;
@@ -197,9 +214,11 @@ class DBRecordGroup {
         return true;
     }
     
-    // Delete main record from db. What to do with other records should be decided on DB level (CASCADE)
+    // Delete main record from db. 
+    // What to do with other records should be decided on DB level (CASCADE)
     // or by overridding this method.
-    public function delete(){
+    public function delete()
+    {
         if (!$this->main->delete()){
             // Database restrictions on main record (probably RESTRICT)
             return false;
@@ -208,18 +227,27 @@ class DBRecordGroup {
     }
     
     // Get main record instance
-    public function getMain(){
+    public function getMain()
+    {
         return $this->main;
     }
     
     // Get child classes by table or all
-    public function getChild($table = null){
+    public function getChild(string $table = null)
+    {
         if (isset($table)){
             return $this->data[$table];
         } else {
             return $this->data;
         }
     }
+    
+    /* To be overridden by child classes */
+    // Accepts data from client in any form and calls parent's methods:
+    // fillMain($data, $exists) and fillData($data)
+    public function fillInputData(array $input_data)
+    {
+        $this->fillMain($input_data['main'], false);
+        $this->fillData($input_data['sub']);
+    }
 }
-
-?>

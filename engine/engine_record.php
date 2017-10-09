@@ -1,35 +1,42 @@
 <?php
 
-// Represents base class for a table record.
+// Contains base class for a table record.
 
 namespace DisEngine;
 
-require_once 'engine_fields.php';
-require_once 'engine_es.php';
-require_once 'engine_config.php';
-require_once 'engine_lib.php';
-
 // A single record in a table.
-class DBRecord {
+class DBRecord 
+{
     /* Static properties and methods */
     protected static $tableName;    // Table name
-    protected static $fields;       // Table fields (DBRecord) to act as samples
+    protected static $fields;       // Sample fields (DBRecord)
     
     // Static init
-    protected static function _init($tableName){
+    protected static function _init(string $tableName)
+    {
         static::$tableName = $tableName;
         static::$fields = [];
     }
     
     // Adds new field sample to generate fields for instances upon
     // or use in SELECT queries
-    protected static function addFieldSample($field){
+    protected static function addFieldSample(DBField $field)
+    {
         static::$fields[] = $field;
     }
     
     // Returns result of SELECT query
-    protected static function select($whereClause){
-        $query = 'SELECT '.joinAssoc(static::$fields, 'name', '`').' FROM `'.(static::$tableName)."` WHERE $whereClause";
+    // Optional: specify a condition
+    protected static function select(string $whereClause = '')
+    {
+        $fields =joinAssoc(static::$fields, 'name', false, '`');
+        $table = static::$tableName);
+        $where = (strlen($whereClause) != 0) ? " WHERE $whereClause" : '';
+        $query = <<<SQL
+            SELECT $fields
+            FROM `$table`
+            $where
+        SQL;
         global $db;
         
         // Executing query
@@ -38,7 +45,7 @@ class DBRecord {
             while($assoc = $result->fetch_assoc()){
                 $cl_name = static::class;   // Class name
                 $new_record = new $cl_name();
-                $new_record->fillFromSelRes($assoc);
+                $new_record->fillData($assoc);
                 $out[] = $new_record;
             }
             return $out;
@@ -47,24 +54,25 @@ class DBRecord {
     }
     
     // Returns table name
-    public static function getTableName(){
+    public static function getTableName()
+    {
         return static::$tableName;
     }
     
     // Returns fields (DBField array of sample instances)
-    public static function getFields(){
+    public static function getFields()
+    {
         return static::$fields;
     }
         
     /* Separate class instance properties and methods */
-    protected $idField;  // Primary key
-    protected $values;   // Table fields (DBField)
-    
-    public $exists; // true - record was created as a result of SELECT query and update will use UPDATE query
-                    // false - update will use INSERT query
+    protected $idField; // Primary key
+    protected $values;  // Table fields (DBField)
+    public $exists;     // This record exists in database
     
     // Constructor
-    function __construct(){
+    function __construct()
+    {
         $this->idField = new NumData('id');
         $this->idField->allowChange(false);
         $this->idField->allowNull(false);
@@ -81,14 +89,16 @@ class DBRecord {
     // *Methods*
         
     // Get field value by field name
-    public function getField($name){
+    public function getField($name)
+    {
         if ($name == 'id') return $this->idField->getValue();
         if (!isset($this->values[$name])) return false;
         return $this->values[$name]->getValue();
     }
     
-    // Fill data from assoc array, exists specifies whether or not data was taken from DB
-    public function fillData($arr, $exists = false){
+    // Fill data from assoc array, exists specifies if data was taken from DB
+    public function fillData($arr, $exists = false)
+    {
         foreach($arr as $field => $value){
             if ($field == 'id'){
                 $this->idField->setValue($value);
@@ -108,36 +118,37 @@ class DBRecord {
     }
     
     // Push changes to the DB
-    public function update(){
+    public function update()
+    {
         $table = static::$tableName;
         
         if ($this->exists){
             // UPDATE query
-            $query = "UPDATE `{$table}` SET ";
-            $tmp_comma = false;
-            foreach($this->values as $value){
-                $query .= ($tmp_comma ? ',' : '')."`{$value->name}`={$value->getValue()}";
-                $tmp_comma = true;
-            }
-            $query .= " WHERE `id` = {$this->idField->getValue()}";
+            $fields = join2Assoc(
+                $this->values, 
+                'name', 
+                false, 
+                '`',
+                $this->values, 
+                'getValue', 
+                true, 
+                '',
+                '='
+            );
+            $query = <<<SQL
+                UPDATE `{$table}` 
+                SET {$fields}
+                WHERE `id` = {$this->idField->getValue()};
+            SQL;
             $eventType = 'changed';
         } else {
             // INSERT query
-            $columns = '';
-            $tmp_comma = false;
-            foreach($this->values as $value){
-                $columns .= ($tmp_comma ? ',' : '')."`{$value->name}`";
-                $tmp_comma = true;
-            }
-            
-            $values = '';
-            $tmp_comma = false;
-            foreach($this->values as $value){
-                $values .= ($tmp_comma ? ',' : '')."{$value->getValue()}";
-                $tmp_comma = true;
-            }
-            
-            $query = "INSERT INTO `{$table}` ({$columns}) VALUES ({$values})";
+            $columns = joinAssoc($this->values, 'name', false, '`');
+            $values = joinAssoc($this->values, 'getValue', true, '');
+            $query = <<<SQL
+                INSERT INTO `{$table}`({$columns})
+                    VALUES ({$values})
+            SQL;
             $eventType = 'added';
         }
         // Query is ready
@@ -159,7 +170,8 @@ class DBRecord {
     }
     
     // Deletes record from DB
-    public function delete(){
+    public function delete()
+    {
         $table = static::$tableName;
         // Can't delete non-existent record
         if (!$this->exists) return false;
@@ -175,27 +187,11 @@ class DBRecord {
         return true;
     }
     
-    // Sets fields based on SELECT query result. $assoc_data should be the result from MYSQLI_RESULT::fetch_assoc()
-    public function fillFromSelRes($assoc_data){
-        if (!$this->idField->setValue($assoc_data['id'])){
-            // No id field or something's wrong
-            return false;
-        }
-        unset($assoc_data['id']);   // To remove extra check from the loop below
-        foreach($assoc_data as $field_name => $value){
-            if (!isset($this->values[$field_name])){
-                // Field doesn't exist - wrong input
-                return false;
-            }
-            if (!$this->values[$field_name]->setValue($value)){
-                // Value was not set
-                return false;
-            }
-        }
-        $this->exists = true;
-        return true;
+    /* To be overridden by child classes */
+    // Accepts data from client in any form and calls parent's method 
+    // fillData(<data>) where <data> is a proper assoc array
+    public function fillInputData($input_data)
+    {
+        $this->fillData($input_data);
     }
-    
 }
-
-?>
