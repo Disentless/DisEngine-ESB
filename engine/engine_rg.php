@@ -10,57 +10,163 @@ spl_autoload_register(function($class_name){
 });
 
 require_once 'engine_config.php';
+require_once 'engine_lib.php';
+
+define("TABLE_FIELD_SEPARATOR", '_%|%_');   // Used to create alias for table fields
 
 // Represents a class for handling data with multiple values for a field.
+// Works with 1:n relations.
 class DBRecordGroup {
-    // Create new instance
-    // $main_name - the name of the base class for this group
-    function __construct($main_name){
-        $this->data = [];
-        $this->rec_name = $main_name;
-        $this->cat_classes = [];
+    /* Static properties and methods */
+    static protected $main_class;    // Main class name
+    static protected $sub_classes;   // Dependant classes
+    
+    // Static init
+    static protected function _init($mainClass){
+        static::$main_class = $mainClass;
+        static::$sub_classes = [];
     }
     
-    /* Private/protected */
-    
-    protected $data;        // Class instances by categories. Categories represents multiple value fields.
-    protected $main;        // Main record for this group
-    protected $rec_name;    // Main record name
-    protected $cat_classes; // Class name for each category.
-    
-    // Add category.
-    // $info should contain:
+    // Add new subclass as assoc array
     // - ['table'] => <Table's name>
     // - ['class'] => <Class' name>
-    // - ['dep_field'] => <Dependency field (foreign key)>
-    protected function addCat($cat, $info){
-        $cat_classes[$cat] = $info;
+    // - ['fk'] => <Dependency field (foreign key)>
+    static protected function addSub($info){
+        static::$sub_classes[$info['table']] = $info;
     }
     
-    // Add to category
-    protected function addInCat($cat, $cl){
-        if (!isset($this->data[$cat])){
+    // Return a table join with main table
+    static protected function joinTable($firstJOIN, $table, $fk){
+        $mainTable = static::$main_class::getTableName();
+        return "($firstJOIN LEFT JOIN `$table` ON `$mainTable`.`id` = `$table`.`$fk`)";
+    }
+    
+    // Returns the result of SELECT query on all tables with given WHERE clause
+    // Result will be an array of class instances or false on fail
+    static protected function select($whereClause){
+        // Tables projection
+        $mainTable = static::$main_class::getTableName();
+        $table_selection = "`$mainTable`";
+        foreach(static::$sub_classes as $subcl){
+            $table_selection = joinTable($table_selection, $subcl['table'], $subcl['fk']);
+        }
+        // Run query to get ID's of main records that satisfy conditions
+        $query = "SELECT DISTINCT `$mainTable`.`id` FROM $table_selection WHERE $whereClause";
+        
+        // Executing query
+        global $db;
+        if ($result = $db->query($query)){
+            // List of all IDs to use later
+            $mainrec_idlist = $result->fetch_all(MYSQLI_NUM);
+            
+            // Output array
+            $out = [];
+            
+            // Running though each ID and
+            // - taking info from main table
+            // - taking info from each child table
+            // - adding class instance to output
+            foreach($mainrec_idlist as $recID){
+                $query = "SELECT * FROM `$mainTable` WHERE `id` = $recID";
+                if ($result = $db->query($query)){
+                    $main_data = $result->fetch_assoc();
+                    
+                    // Rounding up each vector table
+                    $vectors = [];
+                    foreach(static::$sub_classes as $table_name => $sub_info){
+                        $cl_name = $sub_info['class'];
+                        $fk = $sub_info['fk'];
+                        // Executing query to get vector info
+                        $query = "SELECT * FROM `$table_name` WHERE `$fk` = $recID";
+                        if ($result = $db->query($query)){
+                            $list = [];
+                            while($list[] = $result->fetch_assoc());
+                            $vectors[$table_name] = $list;
+                        } else {
+                            return false;
+                        }
+                    }
+                    // Creating DBRecordGroup's child instance
+                    $main_clname = static::class;
+                    $main_cl = new $main_clname();
+                    $main_cl->fillMain($main_data, true);
+                    $main_cl->fillData($vectors);
+                    $out[] = $main_cl;
+                } else {
+                    // Something went wrong
+                    // TO-DO: Make a log system btw (before i forget)
+                    return false;
+                }
+            }
+            
+            // All is okay
+            return $out;
+        } else {
+            // Something went wrong
             return false;
         }
-        $this->data[$cat][] = $cl;
     }
     
-    // Return 2 table join
-    private function joinTable($firstJOIN, $table, $fk){
-        $mainTable = $this->main->getTableName();
-        return "($firstJOIN INNER JOIN `$table` ON `$mainTable`.`id` = `$table`.`$fk`)";
+    /* Instance properties and methods */
+    protected $data;    // Class instances by tables
+    protected $main;    // Main record for this group
+    
+    // Constructor
+    function __construct(){
+        $this->resetSub();
+        $main_clname = static::$main_class;
+        $this->main = new $main_clname();
+    }
+    
+    // Reset subclasses
+    protected function resetSub(){
+        $this->data = [];
+        foreach(static::$sub_classes as $subcl){
+            $this->data[$subcl::getTableName()] = [];
+        }
+    }
+    
+    // Rewrites current object's main record properties
+    protected function fillMain($data, $exists = false){
+        $mainTable = static::$main_class::getTableName();
+        return $this->main->fillData($data, true);
+    }
+    
+    // Rewrites child info
+    // $data - assoc array formatted as follows:
+    // [<sub table name>] - array of assoc arrays with child class properties
+    protected function fillData($data){
+        $this->resetSub();
+        foreach($data as $table => $records){
+            foreach($records as $rec){
+                // Creating new instance
+                $cl_name = static::$sub_classes[$table]['class'];
+                $cl = new $cl_name();
+                $cl->fillData($rec, true);
+                // Adding to the list for according table
+                $this->data[$table][] = $cl;
+            }
+        }
+    }
+    
+    // Works the same as fillData but does not reset the object's state
+    // or main record properties. Only appends sub classes.
+    protected function appendData($data){
+        // Sub instances
+        foreach($data as $table => $records){
+            foreach($records as $rec){
+                // Creating new instance
+                $cl_name = static::$sub_classes[$table]['class'];
+                $cl = new $cl_name();
+                $cl->fillData($rec, true);
+                // Adding to the list for according table
+                $this->data[$table][] = $cl;
+            }
+        }
     }
     
     /* Public */
-    // Returns JOIN operaion on all tables to later insert after FROM statement
-    public function getJOIN(){
-        $res = "`{$this->main-getTableName()}`";
-        foreach($cat_classes as $cat => $info){
-            $res = joinTable($res, $info['table'], $info['dep_field']);
-        }
-        return $res;
-    }
-        
+    
     // Flush changes to database in a single transaction
     public function update(){
         if (!isset($this->main)) return false;
@@ -75,7 +181,7 @@ class DBRecordGroup {
         }
         
         // Updating each category
-        foreach($this->data as $cat => $arr){
+        foreach($this->data as $table => $arr){
             // Each instance
             foreach($arr as $cl){
                 if (!$cl->update()){
@@ -101,32 +207,17 @@ class DBRecordGroup {
         return true;
     }
     
-    /* To be overridden by child classes */
+    // Get main record instance
+    public function getMain(){
+        return $this->main;
+    }
     
-    // Fills data from SELECT query result. 
-    // $assoc_data should contain a pair: ['main'] => <assoc_array>, where assoc_array is the result from MYSLQI_RESULT::fetch_assoc().
-    // Fo each caterogy $assoc_data should contain a pair: ['<category>'] => <array of assoc>
-    public function fillFromSelRes($sel_data){
-        $main_class_name = $this->rec_name;
-        $this->main = new $main_class_name();
-        $table_name = $this->main->getTableName();
-        if (!isset($sel_data['main']) || !$this->main->fillFromSelRes($sel_data['main'])){
-            return false;
-        }
-        $this->exists = true;
-        
-        // Clear all data
-        $this->data = [];
-        // Unsetting used data to reduce number of calls in the loop.
-        unset($sel_data['main']);
-        // Looping through categories
-        foreach($sel_data as $cat => $arr){
-            $cl_name = $this->cat_classes[$cat]['class'];
-            foreach($arr as $assoc_data){
-                $cl = new $cl_name();   // Preloaded user class
-                $cl->fillFromSelRes($assoc_data);
-                $this->addInCat($cat, $cl);
-            }
+    // Get child classes by table or all
+    public function getChild($table = null){
+        if (isset($table)){
+            return $this->data[$table];
+        } else {
+            return $this->data;
         }
     }
 }

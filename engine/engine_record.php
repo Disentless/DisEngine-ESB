@@ -45,6 +45,16 @@ class DBRecord {
         }
         return false;
     }
+    
+    // Returns table name
+    public static function getTableName(){
+        return static::$tableName;
+    }
+    
+    // Returns fields (DBField array of sample instances)
+    public static function getFields(){
+        return static::$fields;
+    }
         
     /* Separate class instance properties and methods */
     protected $idField;  // Primary key
