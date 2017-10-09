@@ -25,12 +25,10 @@ Each client will have one or more EventStream connections with the server. For e
 
 ## Classes overview
 ### Base classes
-Engine has 5 base classes to build the application upon:
+Engine has 3 base classes to build the application upon:
 1. DBField. Represents a single field in a DB table.
 2. DBRecord. Represents a single record in a DB table.
 3. DBRecordGroup. Represents a joined record in a DB table where a record in the main table has several dependant records in another tables.
-4. DBSelector. A class to perform SELECT queries on a single DB table (DBRecord attached).
-5. DBRGSelector. A class to perform SELECT queries on joined tables (DBRecordGroup).
 
 ### DBField
 Represents a base class for fields in a DB table. Currently 3 field types are supported: Int, String, DateTime. Each class instance can specify an exact DB type this instance uses and a few optional parameters.
@@ -57,7 +55,7 @@ $f->allowNull(true/false);      // Set whether or not NULL value is supported
 $f->setValue($val);             // Set new value for this field. Returns false on fail
 $f->getValue();                 // Get string represenstation of current value
 ```
-Field types should reflect the types used in DB tables, otherwise database queries will fail. Default values for fields can be configured in 'engine_fields.php' file by changing these constants.
+Field types should reflect the types used in DB tables, otherwise database queries will fail. Default values for fields can be configured in 'engine_config.php' file by changing these constants.
 ```
 define('MAX_INT', PHP_MAX_INT);
 define('DEFAULT_CAN_NULL', false);
@@ -77,70 +75,142 @@ It is possible to expand the number of classes (beyond default 3) manually if re
 Represents a base class for one record in DB table. For each DB table a new class should be inherited from this one. Typical class description is as follows:
 ```
 <?php
-// Creating new class to represent Accounts table. PHP file name should reflect the class name. In this case 'Account.php';
+// *Creating new class to represent Accounts table. PHP file name should reflect the class name. In this case 'Account.php'*
 
-require_once 'engine_record.php'; // Base class
-
+require_once 'engine_record.php';
 // Inherit base class
-class Account extends DisEngine\DBRecord {
-    function __construct(){
-        parent::__construct('Accounts');    // Call to parent construct with table's name
+class Account extends DisEngine\DBRecord 
+{
+    /* Required description */
+    function __construct()
+    {
+        parent::__construct();    // Call to parent construct with table's name
         
+        // Do other stuff
+    }
+    
+    public static function init()
+    {
+        parent::_init('Accounts');
         // Adding fields
         $id_field = new NumData('id', 'INT');
         $id_field->allowChange(false);
         $id_field->allowNull(false);
-        $this->addField($id_field);
-        
+        self::addFieldSample($id_field);
+
         $login_field = new StrData('login', 'VARCHAR(32)');
         $login_field->allowChange(true);
         $login_field->allowNull(false);
-        $this->addField($login_field);
-        
+        self::addFieldSample($login_field);
+
         $psw_field = new StrData('pswHash', 'VARCHAR(255)');
         $psw_field->allowChange(true);
         $psw_field->allowNull(true);
-        $this->addField($psw_field);
-        
-        $reg_field = new DateTimeData('registered');    // Will default to 'DATETIME' if not specified
+        self::addFieldSample($psw_field);
+
+        $reg_field = new DateTimeData('registered');
         $reg_field->allowChange(false);
         $reg_field->allowNull(true);
-        $this->addField($reg_field);
+        self::addFieldSample($reg_field);
+
+        // Do other stuff
     }
+    
+    /* Custom functionality and properties */
+    // Get all records
+    public static function get_all(){
+        return self::select();
+    }
+    // ...
 }
-?>
 ```
-Setting and getting field values can be done as follows:
+If following PSR-2 coding style \[1] can be ommited. Initialization file already does include this base class.
+
+Working with this class:
 ```
+// Create new instance
 $new_account = new Account();
+// Set data
 $new_account->fillData(['id' => 3, 'login' => 'newuser', 'pswHash' => '$423fhg$ghjhg44%&*']);
+// Add this record to database because it didn't exist
+$new_account->update();
+// Change data
+$new_account->fillData(['id' => 3, 'login' => 'newuser2', 'pswHash' => '$763fhg$gh']);
+// This will update record because it exists now
+$new_account->update();
+// Set data from input. Works the same as fillData but can be overridden.
+$new_account->fillInputData(['id' => 3, 'login' => 'newuser2', 'pswHash' => '$763fhg$gh']);
+// Get specific field values
+$id = $new_account->getField('id');
 $login = $new_account->getField('login');
+// Get all records
+$all_accounts = Account::get_all();
 ```
 
 ### DBRecordGroup
 Represents a base class for working with records which have dependant records in other tables. This class uses each class for each table it supports. Typical description is as follows:
 ```
 <?php
-// Creating new class to represent Groups table. PHP file name should reflect the class name. In this case 'Groups.php';
+// Creating new class to represent Groups table. PHP file name should reflect the class name. In this case 'GroupList.php';
 // Groups table has GroupMember vector table that's used to contain group member list.
 // GroupMember table is represented by GroupMember class (class name can be different).
 
-require_once 'engine_rg.php'; // Base class (DBRecordGroup)
-
 // Inherit base class
-class Groups extends DisEngine\DBRecordGroup {
-    function __construct(){
-        // There should be a 'Group.php' file containing Group class.
-        // Group class represents Groups table.
-        parent::__construct('Group');   // Call to parent construct with main class name
+class GroupList extends DisEngine\DBRecordGroup 
+{
+    /* Required */
+    function __construct()
+    {
+        parent::__construct();
         
-        // Adding dependants
-        $this->addCat(['table' => 'GroupMember', 'class' => 'GroupMember', 'dep_field' => 'group_id');
+        // Do other stuff
+    }
+    
+    public static function init()
+    {
+        parent::_init('Group');
+        // Add vector classes
+        parent::addSub([
+            'table' => 'GroupMember',
+            'class' => 'GroupMember',
+            'fk' => 'group_id'
+        ]);
+        
+        // Do other stuff
+    }
+    
+    /* Custom functionality */
+    public static function get_all(){
+        return self::select();
     }
 }
-?>
+```
+Working with this class:
+```
+// Create new instance
+$group = new GroupList();
+// Set data
+$group->fillMain(['name' => 'group1', 'id' => 1]);
+$group->fillData([
+    'GroupMember' => [
+        ['member_id' => 1, 'type' => 'normal'],
+        ['member_id' => 2, 'type' => 'premium'],
+        // ...
+    ]
+]);
+// Get data
+$group_rec = $group->getMain();             // Returns Group class
+$members = $group->getChild('GroupMember'); // Returns array of GroupMember classes
+// Set data from input
+$group->fillInputData([
+    'main' => ['name' => 'group1', 'id' => 1],
+    'sub' => [
+        'GroupMember' => [ /* Array of members */],
+        // Same with other vectors
+    ]
+]);
 ```
 For each dependant table vector 3 things should be specified:
 - Table name
 - Class name that represents the table (DBRecord child)
-- 'dep_field' - Name of the field in the table that is a foreign key. This value will be used as basis for JOIN operations in SELECT queries for this data.
+- \['fk'] - Name of the field in the table that is a foreign key. This value will be used as basis for JOIN operations in SELECT queries for this data.
