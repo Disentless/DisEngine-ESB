@@ -140,16 +140,15 @@ class DBRecordGroup
     }
     
     // Rewrites current object's main record properties
-    protected function fillMain(array $data, bool $exists = false)
+    public function fillMain(array $data, bool $exists = false)
     {
-        $mainTable = static::$main_class::getTableName();
         return $this->main->fillData($data, true);
     }
     
     // Rewrites child info
     // $data - assoc array formatted as follows:
     // [<sub table name>] - array of assoc arrays with child class properties
-    protected function fillData(array $data)
+    public function fillData(array $data)
     {
         $this->resetSub();
         foreach($data as $table => $records){
@@ -166,7 +165,7 @@ class DBRecordGroup
     
     // Works the same as fillData but does not reset the object's state
     // or main record properties. Only appends sub classes.
-    protected function appendData(array $data)
+    public function appendData(array $data)
     {
         // Sub instances
         foreach($data as $table => $records){
