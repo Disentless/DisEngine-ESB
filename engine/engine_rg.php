@@ -119,8 +119,9 @@ class DBRecordGroup
     }
     
     /* Instance properties and methods */
-    protected $data;    // Class instances by tables
-    protected $main;    // Main record for this group
+    protected $data;        // Class instances by tables
+    protected $main;        // Main record for this group
+    protected $init_flag;   // If this instance was initialized
     
     // Constructor
     function __construct()
@@ -142,7 +143,7 @@ class DBRecordGroup
     // Rewrites current object's main record properties
     public function fillMain(array $data, bool $exists = false)
     {
-        return $this->main->fillData($data, true);
+        return ($this->init_flag = $this->main->fillData($data, true));
     }
     
     // Rewrites child info
@@ -150,6 +151,9 @@ class DBRecordGroup
     // [<sub table name>] - array of assoc arrays with child class properties
     public function fillData(array $data)
     {
+        // Cannot set children until main record is set
+        if (!$this->init_flag) return false;
+        
         $this->resetSub();
         foreach($data as $table => $records){
             foreach($records as $rec){
@@ -167,6 +171,9 @@ class DBRecordGroup
     // or main record properties. Only appends sub classes.
     public function appendData(array $data)
     {
+        // Cannot set children until main record is set
+        if (!$this->init_flag) return false;
+        
         // Sub instances
         foreach($data as $table => $records){
             foreach($records as $rec){
@@ -185,6 +192,9 @@ class DBRecordGroup
     // Flush changes to database in a single transaction
     public function update()
     {
+        // Cannot operate on empty record
+        if (!$this->init_flag) return false;
+        
         if (!isset($this->main)) return false;
         // Starting database transation
         global $db;
@@ -218,6 +228,9 @@ class DBRecordGroup
     // or by overridding this method.
     public function delete()
     {
+        // Cannot operate on empty record
+        if (!$this->init_flag) return false;
+        
         if (!$this->main->delete()){
             // Database restrictions on main record (probably RESTRICT)
             return false;
@@ -228,12 +241,18 @@ class DBRecordGroup
     // Get main record instance
     public function getMain()
     {
+        // Cannot operate on empty record
+        if (!$this->init_flag) return false;
+        
         return $this->main;
     }
     
     // Get child classes by table or all
     public function getChild(string $table = null)
     {
+        // Cannot operate on empty record
+        if (!$this->init_flag) return false;
+        
         if (isset($table)){
             return $this->data[$table];
         } else {
@@ -246,7 +265,8 @@ class DBRecordGroup
     // fillMain($data, $exists) and fillData($data)
     public function fillInputData(array $input_data)
     {
-        $this->fillMain($input_data['main'], false);
-        $this->fillData($input_data['sub']);
+        return 
+            $this->fillMain($input_data['main'], false) &&
+            $this->fillData($input_data['sub']);
     }
 }

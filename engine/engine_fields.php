@@ -68,6 +68,7 @@ class DBField
     // Return string representation of value
     public function getValue()
     {
+        if (!$this->initFlag) return false;
         return $this->value;
     }
 }
@@ -140,7 +141,7 @@ class StrData extends DBField
     }
     
     // Methods for setting restrictions.
-    public function setLengthRange(int $min,int $max)
+    public function setLengthRange(int $min, int $max)
     {
         $this->minLength = $min;
         $this->maxLength = $max;
@@ -165,7 +166,7 @@ class StrData extends DBField
 // DateTime field. Keeps DateTime in its string representation.
 class DateTimeData extends DBField 
 {
-    function __construct(string $name,string $type)
+    function __construct(string $name, string $type)
     {
         parent::__construct($name);
         
@@ -203,5 +204,16 @@ class DateTimeData extends DBField
     public function getValue()
     {
         return "'{$this->value}'";
+    }
+}
+
+// Boolean field
+class BoolData extends DBField
+{
+    function __construct(string $name)
+    {
+        parent::__construct($name);
+        
+        $this->$type = $config['defaults']['DB_BOOL_TYPE'];
     }
 }

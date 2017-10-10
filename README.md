@@ -1,5 +1,6 @@
 # DisEngine-ESB
 Server engine based on event system.
+PHP Version: 7.0.0+. Not compatible with older versions.
 
 ## Overview
 Customizable engine that supports endless expansion. Server side uses events to share changes in data with clients. Clients receive information via EventStream protocol.
@@ -31,7 +32,7 @@ Engine has 3 base classes to build the application upon:
 3. DBRecordGroup. Represents a joined record in a DB table where a record in the main table has several dependant records in another tables.
 
 ### DBField
-Represents a base class for fields in a DB table. Currently 3 field types are supported: Int, String, DateTime. Each class instance can specify an exact DB type this instance uses and a few optional parameters.
+Represents a base class for fields in a DB table. Currently 4 field types are supported: Int, String, DateTime and Boolean. Each class instance can specify an exact DB type this instance uses and a few optional parameters.
 ```
 // Numeric class - NumData
 $int_field = new NumData('int_field', 'INT');           // Creates a field of INT type

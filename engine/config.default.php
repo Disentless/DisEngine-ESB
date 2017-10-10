@@ -15,6 +15,7 @@ $config['db'] = [
 $config['defaults'] = [
     'TABLE_FIELD_SEPARATOR' => '_%|%_',     // Separator inside SQL to use
     'MAX_INT' => PHP_MAX_INT,               // Max value for int fields
+    'DB_BOOL_TYPE' => 'BOOL',               // Default type for boolean
     
     /* Defaults for DBField class */
     'DEFAULT_CAN_NULL' => false,

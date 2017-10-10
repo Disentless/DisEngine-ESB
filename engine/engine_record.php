@@ -29,7 +29,7 @@ class DBRecord
     // Optional: specify a condition
     protected static function select(string $whereClause = '')
     {
-        $fields =joinAssoc(static::$fields, 'name', false, '`');
+        $fields = joinAssoc(static::$fields, 'name', false, '`');
         $table = static::$tableName);
         $where = (strlen($whereClause) != 0) ? " WHERE $whereClause" : '';
         $query = <<<SQL
@@ -89,7 +89,7 @@ class DBRecord
     // *Methods*
         
     // Get field value by field name
-    public function getField($name)
+    public function getField(string $name)
     {
         if ($name == 'id') return $this->idField->getValue();
         if (!isset($this->values[$name])) return false;
@@ -97,7 +97,7 @@ class DBRecord
     }
     
     // Fill data from assoc array, exists specifies if data was taken from DB
-    public function fillData($arr, $exists = false)
+    public function fillData(array $arr, bool $exists = false)
     {
         foreach($arr as $field => $value){
             if ($field == 'id'){
@@ -190,7 +190,7 @@ class DBRecord
     /* To be overridden by child classes */
     // Accepts data from client in any form and calls parent's method 
     // fillData(<data>) where <data> is a proper assoc array
-    public function fillInputData($input_data)
+    public function fillInputData(array $input_data)
     {
         $this->fillData($input_data);
     }
