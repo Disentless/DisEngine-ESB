@@ -55,19 +55,7 @@ $f->allowNull(true/false);      // Set whether or not NULL value is supported
 $f->setValue($val);             // Set new value for this field. Returns false on fail
 $f->getValue();                 // Get string represenstation of current value
 ```
-Field types should reflect the types used in DB tables, otherwise database queries will fail. Default values for fields can be configured in 'engine_config.php' file by changing these constants.
-```
-define('MAX_INT', PHP_MAX_INT);
-define('DEFAULT_CAN_NULL', false);
-define('DEFAULT_CAN_CHANGE', true);
-define('DEFAULT_CHECK_F_VALUE', null);
-define('DEFAULT_INT_TYPE', 'INT');
-define('DEFAULT_STR_TYPE', 'VARCHAR(45)');
-define('DEFAULT_STR_MINLENGTH', 0);
-define('DEFAULT_STR_MAXLENGTH', PHP_MAX_INT);
-define('DEFAULT_STR_PATTERN', '/^.*$/');
-define('DEFAULT_DATETIME_TYPE', 'DATETIME');
-```
+Field types should reflect the types used in DB tables, otherwise database queries will fail. Default values for fields can be set in config file.
 
 It is possible to expand the number of classes (beyond default 3) manually if required but it is not described here.
 

@@ -43,8 +43,9 @@ if (!isset($classMapping[$group])){
     die;
 }
 
-// Choosing which class to work with
+// Choosing which class to work with and initializing it
 $className = $classMapping[$group];
+$className::init();
 
 // Executing action
 switch($action){
@@ -64,7 +65,8 @@ switch($action){
         $className = $classMapping[$group].'Selector';
         $selector = new $className();
         // Getting data
-        $requestSuccess = ($resultData = $selector->select($reqArr['data']));
+        $resultData = $selector->select($reqArr['data']);
+        $requestSuccess = $resultData != false;
         break;
 }
 

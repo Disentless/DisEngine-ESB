@@ -11,9 +11,9 @@ class DBField
     function __construct(string $name)
     {
         $this->name = $name;
-        $this->canChange = DEFAULT_CAN_CHANGE;
-        $this->canNull = DEFAULT_CAN_NULL;
-        $this->checkF = DEFAULT_CHECK_F_VALUE;
+        $this->canChange = $config['defaults']['DEFAULT_CAN_CHANGE'];
+        $this->canNull = $config['defaults']['DEFAULT_CAN_NULL'];
+        $this->checkF = $config['defaults']['DEFAULT_CHECK_F_VALUE'];
     }
     // Parameters.
     public $name;  // Field name (string)
@@ -79,9 +79,9 @@ class NumData extends DBField
     {
         parent::__construct($name);
         
-        $this->type = $type ?? DEFAULT_INT_TYPE;
-        $this->min = -MAX_INT;
-        $this->max = MAX_INT;
+        $this->type = $type ?? $config['defaults']['DEFAULT_INT_TYPE'];
+        $this->min = -$config['defaults']['MAX_INT'];
+        $this->max = $config['defaults']['MAX_INT'];
     }
     
     // Type specific properties.
@@ -115,9 +115,9 @@ class StrData extends DBField
     {
         parent::__construct($name);
         
-        $this->type = $type ?? DEFAULT_STR_TYPE;
-        $this->minLength = DEFAULT_STR_MINLENGTH;
-        $this->maxLength = DEFAULT_STR_MAXLENGTH;
+        $this->type = $type ?? $config['defaults']['DEFAULT_STR_TYPE'];
+        $this->minLength = $config['defaults']['DEFAULT_STR_MINLENGTH'];
+        $this->maxLength = $config['defaults']['DEFAULT_STR_MAXLENGTH'];
         $this->pattern = null;
     }
     
@@ -169,9 +169,9 @@ class DateTimeData extends DBField
     {
         parent::__construct($name);
         
-        $this->$type = $type ?? DEFAULT_DATETIME_TYPE;
-        $this->low = DEFAULT_DATETIME_LOW;
-        $this->high = DEFAULT_DATETIME_HIGH;
+        $this->$type = $type ?? $config['defaults']['DEFAULT_DATETIME_TYPE'];
+        $this->low = $config['defaults']['DEFAULT_DATETIME_LOW'];
+        $this->high = $config['defaults']['DEFAULT_DATETIME_HIGH'];
     }
     
     // Datetime restrictions

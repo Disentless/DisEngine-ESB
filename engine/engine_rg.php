@@ -9,7 +9,7 @@ namespace DisEngine;
 class DBRecordGroup 
 {
     /* Static properties and methods */
-    protected static  $main_class;    // Main class name
+    protected static $main_class;    // Main class name
     protected static $sub_classes;   // Dependant classes
     
     // Static init
