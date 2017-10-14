@@ -22,13 +22,15 @@ function joinAssoc(
     if (!$func){
         // Join properties
         foreach($arr as $el){
-            $res .= ($tmp_comma ? ',' : '').$encase.$el->{$prop}.$encase;
+            $res .= ($tmp_comma ? ',' : '');
+            $res .= $encase.$el->{$prop}.$encase;
             $tmp_comma = true;
         }
     } else {
         // Join method results
         foreach($arr as $el){
-            $res .= ($tmp_comma ? ',' : '').$encase.$el->{$prop}($param).$encase;
+            $res .= ($tmp_comma ? ',' : '');
+            $res .= $encase.$el->{$prop}($param).$encase;
             $tmp_comma = true;
         }
     }
@@ -43,7 +45,8 @@ function joinArr(array $arr, string $encase)
     $res = '';
     $tmp_comma = false;
     foreach($arr as $el){
-        $res .= ($tmp_comma ? ',' : '').$encase.$el.$encase;
+        $res .= ($tmp_comma ? ',' : '');
+        $res .= $encase.$el.$encase;
         $tmp_comma = true;
     }
     return $res;
@@ -75,9 +78,10 @@ function join2Assoc(
     $res = '';
     $tmp_comma = false;
     for($i = 0; $i < $count; ++$i){
-        $part1 = $enc1.($func_flag1 ? $arr1[$i]->$prop1() : $arr1[$i][$prop1]).$enc1;
-        $part2 = $enc2.($func_flag2 ? $arr2[$i]->$prop2() : $arr2[$i][$prop2]).$enc2;
-        $res .= ($tmp_comma ? ',' : '').$part1.$middle.$part2;
+        $part1 = ($func_flag1 ? $arr1[$i]->$prop1() : $arr1[$i][$prop1]);
+        $part2 = ($func_flag2 ? $arr2[$i]->$prop2() : $arr2[$i][$prop2]);
+        $res .= ($tmp_comma ? ',' : '');
+        $res .= $enc1.$part1.$enc1.$middle.$enc2.$part2.$enc;
         $tmp_comma = true;
     }
     return $res;

@@ -3,7 +3,7 @@
 // Initialization file.
 
 require_once "engine_db.php";
-if (!($config = include "config.php")){
+if (!($config = include "config.php")) {
     $config = require "config.default.php";
 }
 
@@ -16,11 +16,7 @@ $db->setConInfo(
     $config['db']['psw'], 
     $config['db']['schema']
 );
-if (!$db->connect()){
-    // DB connection failed
-    error_log('Failed to connect to database');
-    die;
-}
+$db->connect();
 
 // Including necessary engine files
 require_once "engine_es.php";       // Event system

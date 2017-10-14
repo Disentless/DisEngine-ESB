@@ -1,11 +1,18 @@
 <?php
-
-// Defines the base class that represents a single DB field
-// and different data type classes.
+/* 
+-------------------------------------------------------------------------------
+    Defines the base class that represents a single DB field
+    and different data type classes.
+-------------------------------------------------------------------------------
+*/
 
 namespace DisEngine;
 
-// Base class for representing different types of data.
+/* 
+-------------------------------------------------------------------------------
+    Base class for representing different types of data.
+-------------------------------------------------------------------------------
+*/
 class DBField 
 {
     function __construct(string $name)
@@ -21,16 +28,17 @@ class DBField
     
     //
     protected $value;     // Field value
-    protected $checkF;    // Custom check function (defined separately). Should return true if value passes the check.
+    protected $checkF;    // Custom check function (defined separately)
     
     // Allowed operations.
-    protected $canChange; // (bool) If true - value can change without any additional checks
-    protected $canNull;   // (bool) If true - value can be NULL
+    protected $canChange; // (bool) If value can change
+    protected $canNull;   // (bool) If value can be NULL
     
     // Flags
-    protected $initFlag;  // (bool) If true - value was assigned, false - all operations are allowed once
+    protected $initFlag;  // (bool) If value was assigned
     
-    // Sets external function as a custom check run on the value before assigning.
+    // Sets external function as a custom check to 
+    // run on the value before assigning.
     public function setCustomCheck(string $val)
     {
         $this->checkF = $val;
@@ -51,13 +59,21 @@ class DBField
     // Set value 
     public function setValue($val)
     {
-        if (!$this->canChange && $this->initFlag || !$this->canNull && !isset($val)) return false;
-        // Wasn't initialized with value or change is allowed.
+        $cant_change = !$this->canChange && $this->initFlag;
+        if ($cant_change) {
+            $error_msg = "Field '{$this->name}' value cannot be changed";
+            throw new NotChangeableEx($error_msg);
+        }
+        $cant_null = !$this->canNull && !isset($val);
+        if ($cant_null) {
+            $error_msg = "Field '{$this->name}' cannot be set to NULL";
+            throw new NotNullEx($error_msg);
+        }
         if (isset($val) && isset($this->checkF)) {
             $checkFName = $this->checkF;
-            if (!$checkFName($val)){
-                // Check failed
-                return false;
+            if (!$checkFName($val)) {
+                $error_msg = "Custom check for field '{$this->name}' failed";
+                throw new CustomCheckEx($error_msg);
             }
         }
         // Value is correct
@@ -68,12 +84,18 @@ class DBField
     // Return string representation of value
     public function getValue()
     {
-        if (!$this->initFlag) return false;
+        if (!$this->initFlag) {
+            throw new NotInializedEx($this->name);
+        }
         return $this->value;
     }
 }
 
-// Decimal field (INT)
+/* 
+-------------------------------------------------------------------------------
+    Decimal field (INT)
+-------------------------------------------------------------------------------
+*/
 class NumData extends DBField 
 {
     function __construct(string $name, string $type)
@@ -92,27 +114,34 @@ class NumData extends DBField
     // Set value after running checks
     public function setValue($val)
     {
-        if (isset($val)){
-            if (($val < $this->min || $val > $this->max)) {
-                // Check failed
-                return false;
+        try {
+            if (isset($val)) {
+                if (($val < $this->min || $val > $this->max)) {
+                    throw new OutOfRangeEx($val, $this->min, $this->max);
+                }
             }
+            return parent::setValue($val);
+        } catch (DisException $e) {
+            throw new InvalidArgumentEx($val, $e);
         }
-        return parent::setValue($val);
     }
     
     // Set range
-    public function setRange(int $min,int $max)
+    public function setRange(int $min, int $max)
     {
         $this->min = $min;
         $this->max = $max;
     }
 }
 
-// String field (VARCHAR/TEXT)
+/* 
+-------------------------------------------------------------------------------
+    String field (VARCHAR/TEXT)
+-------------------------------------------------------------------------------
+*/
 class StrData extends DBField 
 {
-    function __construct(string $name,string $type)
+    function __construct(string $name, string $type)
     {
         parent::__construct($name);
         
@@ -130,9 +159,13 @@ class StrData extends DBField
     // Set value after running checks
     public function setValue($val)
     {
-        if (isset($val)){
+        if (isset($val)) {
             $len = mb_strlen($val);
-            if ($len < $minLength || $len > $maxlength || !preg_match($pattern, $val)){
+            if (
+                $len < $minLength 
+                || $len > $maxlength 
+                || !preg_match($pattern, $val)
+            ) {
                 // Check failed
                 return false;
             }
@@ -163,7 +196,11 @@ class StrData extends DBField
     }
 }
 
-// DateTime field. Keeps DateTime in its string representation.
+/* 
+-------------------------------------------------------------------------------
+    DateTime field. Keeps DateTime in its string representation.
+-------------------------------------------------------------------------------
+*/
 class DateTimeData extends DBField 
 {
     function __construct(string $name, string $type)
@@ -182,11 +219,13 @@ class DateTimeData extends DBField
     // Set value
     public function setValue($val)
     {
-        if (isset($val)){
+        if (isset($val)) {
             $low_timestamp = strtotime($low);
             $high_timestamp = strtotime($high);
             $val_timestamp = strtotime($val);
-            if ($val_timestamp < $low_timestamp || $val_timestamp > $high_timestamp){
+            if ($val_timestamp < $low_timestamp 
+                || $val_timestamp > $high_timestamp
+            ) {
                 return false;
             }
         }
@@ -194,7 +233,7 @@ class DateTimeData extends DBField
     }
     
     // Methods for setting restrictions.
-    public function setRange(int $low,int $high)
+    public function setRange(int $low, int $high)
     {
         $this->low = $low;
         $this->high = $high;
@@ -207,7 +246,11 @@ class DateTimeData extends DBField
     }
 }
 
-// Boolean field
+/* 
+-------------------------------------------------------------------------------
+    Boolean field
+-------------------------------------------------------------------------------
+*/
 class BoolData extends DBField
 {
     function __construct(string $name)

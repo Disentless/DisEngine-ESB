@@ -1,7 +1,9 @@
 <?php
 
 // Configuration parameters.
-$config = [];
+$config = [
+    'class_dir' => 'classes'
+];
 
 // Database
 $config['db'] = [

@@ -6,7 +6,7 @@
 namespace DisEngine;
 
 // Represents a class for database connections to MySQL server
-class Database 
+final class Database 
 {
     /* Private */
     
@@ -33,9 +33,13 @@ class Database
     }
     
     // Checks whether connections are possible.
-    private function checkCon()
+    private function checkCon(bool $throw = false)
     {
-        return $this->init && !$this->conLost;
+        $res = $this->init && !$this->conLost;
+        if ($throw) {
+            throw new NoConnectionEx('Connection is closed');
+        }
+        return $res;
     }
     
     /* Public */
@@ -44,8 +48,12 @@ class Database
     /*Public methods*/
     
     // Set connection info
-    public function setConInfo(string $host, string $user, string $psw, string $schema)
-    {
+    public function setConInfo(
+        string $host, 
+        string $user, 
+        string $psw, 
+        string $schema
+    ) {
         $this->host = $host;
         $this->user = $user;
         $this->psw = $psw;
@@ -57,8 +65,11 @@ class Database
     {
         $this->mysqli = new mysqli($host, $user, $psw, $schema);
         
-        if ($this->mysqli->connect_error){
-            return false;
+        if ($this->mysqli->connect_error) {
+            throw new ConnectionErrorEx(
+                $this->mysqli->connect_error, 
+                $this->mysqli->connect_errno
+            );
         }
         
         // Okay to make requests
@@ -70,10 +81,13 @@ class Database
     // Open transaction
     public function beginTransaction()
     {
-        if (!$this->checkCon() || $this->transaction) return false;
+        $this->checkCon(true);
+        if ($this->transaction) {
+            throw new ActiveTransactionEx('Transaction is already open');
+        }
         
-        if (!$this->mysqli->query("START TRANSACTION")){
-            $this->conLost = true;  // The only explanation to why this query can fail.
+        if (!$this->mysqli->query("START TRANSACTION")) {
+            $this->conLost = true;
             return false;
         }
         
@@ -85,10 +99,13 @@ class Database
     // Close transaction
     public function finishTransaction()
     {
-        if (!$this->checkCon() || !$this->transaction) return false;
+        $this->checkCon(true);
+        if (!$this->transaction) {
+            throw new NoTransactionEx('Transaction isn\'t open');
+        }
         
-        if (!$this->mysqli->query("COMMIT")){
-            $this->conLost = true;  // The only explanation to why this query can fail.
+        if (!$this->mysqli->query("COMMIT")) {
+            $this->conLost = true;  
             return false;
         }
         
@@ -100,10 +117,13 @@ class Database
     // Rollback changes
     public function rollback()
     {
-        if (!$this->checkCon() || !$this->transaction) return false;
+        $this->checkCon(true);
+        if (!$this->transaction) {
+            throw new NoTransactionEx('Transaction isn\'t open');
+        }
         
-        if (!this->mysqli->query("ROLLBACK")){
-            $this->conLost = true;  // The only explanation to why this query can fail.
+        if (!this->mysqli->query("ROLLBACK")) {
+            $this->conLost = true;
             return false;
         }
         
@@ -115,41 +135,49 @@ class Database
     // Execute query
     public function query(string $query)
     {
-        if (!$this->checkCon()) return false;
+        $this->checkCon(true);
         
-        if ($result = $this->mysqli->query($query)){
+        if ($result = $this->mysqli->query($query)) {
             // Update insert id
             $this->insert_id = $this->mysqli->insert_id;
             // Return mysqli_result
             return $result;
         } else {
-            return false;
+            throw new QueryFailedEx(
+                $this->mysqli->error, 
+                $this->mysqli->errno
+            );
         }
     }
     
-    // Execute multi query, outputResuls specifies whether or not result of each statement should be returned after function succeeds
+    // Execute multi query, outputResuls specifies whether or not
+    // result of each statement should be returned after function succeeds
     public function multiQuery(string $query, bool $outputResult = false)
     {
         // Start transaction
         $this->beginTransaction();
         
-        if ($outputResult){
+        if ($outputResult) {
             // Output array
             $out = [];
         }
         // Execute statements
-        if ($this->mysqli->multi_query($query)){
+        if ($this->mysqli->multi_query($query)) {
             do {
-                if ($result = $this->mysqli->store_result()){
-                    if ($outputResult){
+                if ($result = $this->mysqli->store_result()) {
+                    if ($outputResult) {
                         $out[] = $result;
                     }
                 }
             } while ($this->mysqli->next_result());
             
-            if ($this->mysqli->more_results()){
-                // Some statements failed
+            if ($this->mysqli->error) {
+                // A statement
                 $this->rollback();
+                throw new MultiQueryFailedEx(
+                    $this->mysqli->error, 
+                    $this->mysqli->errno
+                );
                 return false;
             } else {
                 // All is okay
@@ -161,7 +189,10 @@ class Database
                 return $outputResult ? $out : true;
             }
         } else {
-            return false;
+            throw new MultiQueryFailedEx(
+                $this->mysqli->error, 
+                $this->mysqli->errno
+            );
         }
         
         return $out;

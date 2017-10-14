@@ -4,146 +4,185 @@
 
 namespace DisEngine;
 
-// Function argument is missing or has wrong format
-class InvalidArgumentEx extends Exception
+// Base class to distinguish between engine exceptions and system ones
+abstract class DisException extends Exception 
 {
     
 }
 
+/* 
+-------------------------------------------------------------------------------
+    Function/Method argument exception
+-------------------------------------------------------------------------------
+*/
+
+// Function argument is missing or has wrong format
+class InvalidArgumentEx extends DisException
+{
+    function __construct($arg = null, Exception $prev = null){
+        $msg = "Argument $arg value cannot be accepted";
+        parent::__construct($msg, 0, $prev);
+    }
+}
+
 // Propery cannot accept this value
-class InvalidPropertyValueEx extends Exception
+class InvalidPropertyValueEx extends DisException
 {
     
 }
 
 // Usage of methods before instance initialization
-class NotInitializedEx extends Exception
+class NotInitializedEx extends DisException
 {
-    
+    function __construct($name = null, Exception $prev = null){
+        $msg = "Accessing a non-initialized value: '$name'";
+        parent::__construct($msg, 2, $prev);
+    }
 }
 
 // Function doesn't exist (when called by its name)
-class FunctionNotExistsEx extends Exception
+class FunctionNotExistsEx extends DisException
 {
     
 }
 
 // Value cannot be changed
-class NotChangeableEx extends Exception
+class NotChangeableEx extends DisException
 {
     
 }
 
 // Value cannot be empty
-class NotNullEx extends Exception
+class NotNullEx extends DisException
 {
     
 }
 
 // Custom check failed
-class CustomCheckEx extends Exception
+class CustomCheckEx extends DisException
 {
     
 }
 
 // Value out of range
-class OutOfRangeEx extends Exception
+class OutOfRangeEx extends DisException
 {
-    
+    function __construct($val, $min, $max, $Exception $prev = null) {
+        $msg = "Value $val is out of required range: (min)$min - (max)$max";
+        parent::__construct($msg, 7, $prev);
+    }
 }
 
 // String doesn't match the pattern
-class PatternMismatchEx extends Exception
-{
-    
-}
-
-// Connection to DB is non-existent
-class NoConnectionEx extends Exception
-{
-    
-}
-
-// Connection creating error
-class ConnectionErrorEx extends Exception
-{
-    
-}
-
-// Attempted to begin transaction when one is open
-class ActiveTransactionEx extends Exception
-{
-    
-}
-
-// Attempted to finish or rollback transaction when none is open
-class NoTransactionEx extends Exception
-{
-    
-}
-
-// Query syntax error
-class QuerySyntaxEx extends Exception
-{
-    
-}
-
-// Query failed to execute
-class QueryFailedEx extends Exception
-{
-    
-}
-
-// Multi-query failed to execute completely
-class MultiQueryFailedEx extends Exception
+class PatternMismatchEx extends DisException
 {
     
 }
 
 // Property or method doesn't exist
-class MissingPropertyEx extends Exception
+class MissingPropertyEx extends DisException
+{
+    
+}
+
+/* 
+-------------------------------------------------------------------------------
+    Database exceptions
+-------------------------------------------------------------------------------
+*/
+
+// Connection to DB is non-existent
+class NoConnectionEx extends DisException
+{
+    
+}
+
+// Connection creating error
+class ConnectionErrorEx extends DisException
+{
+    
+}
+
+// Attempted to begin transaction when one is open
+class ActiveTransactionEx extends DisException
+{
+    
+}
+
+// Attempted to finish or rollback transaction when none is open
+class NoTransactionEx extends DisException
+{
+    
+}
+
+// Query syntax error
+class QuerySyntaxEx extends DisException
+{
+    
+}
+
+// Query failed to execute
+class QueryFailedEx extends DisException
+{
+    
+}
+
+// Multi-query failed to execute completely
+class MultiQueryFailedEx extends DisException
+{
+    
+}
+
+/* 
+-------------------------------------------------------------------------------
+   Input handling exceptions
+-------------------------------------------------------------------------------
+*/
+
+// Request format is wrong
+class RequestFormatEx extends DisException
 {
     
 }
 
 // Input data is incorrectly formatted
-class InputFormatEx extends Exception
+class InputFormatEx extends DisException
 {
     
 }
 
 // Class update failed
-class RecordUpdateEx extends Exception
+class RecordUpdateEx extends DisException
 {
     
 }
 
 // Class deletion failed
-class RecordDeleteEx extends Exception
+class RecordDeleteEx extends DisException
 {
     
 }
 
 // Access to data denied to client
-class AccessDeniedEx extends Exception
+class AccessDeniedEx extends DisException
 {
     
 }
 
 // Input cannot be mapped
-class InputMappingEx extends Exception
+class InputMappingEx extends DisException
 {
     
 }
 
 // Class doesn't exist
-class ClassNotExistsEx extends Exception
+class ClassNotExistsEx extends DisException
 {
     
 }
 
 // Request could not be completed
-class RequestExecutionEx extends Exception
+class RequestExecutionEx extends DisException
 {
     
 }
