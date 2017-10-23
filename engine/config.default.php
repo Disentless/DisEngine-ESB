@@ -2,7 +2,8 @@
 
 // Configuration parameters.
 $config = [
-    'class_dir' => 'classes'
+    'class_dir' => 'classes',   // Local directory inside root
+    'engine_root' => '.'        // Absolute/relative root path
 ];
 
 // Database

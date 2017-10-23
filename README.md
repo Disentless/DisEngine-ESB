@@ -203,3 +203,10 @@ For each dependant table vector 3 things should be specified:
 - Table name
 - Class name that represents the table (DBRecord child)
 - \['fk'] - Name of the field in the table that is a foreign key. This value will be used as basis for JOIN operations in SELECT queries for this data.
+
+## API
+All incoming requests are processed by 'engine_api.php' script. Each request should be an associative array with following pairs:
+- 'timestamp' => request UNIX timestamp (INT)
+- 'info' => assoc array with request information
+- 'params' => assoc array with request parameters specific for each request
+- 'data' => array with data to process

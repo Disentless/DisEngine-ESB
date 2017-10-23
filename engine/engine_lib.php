@@ -86,3 +86,23 @@ function join2Assoc(
     }
     return $res;
 }
+
+// Loads requested script. If no script is found - loads the default one
+// $scipt - script name without extension
+function loadScript($script)
+{
+    $file_name = $script.'.php';
+    $default_file_name = $script.'.default.php';
+    $root = $config['engine_root'].DIRECTORY_SEPARATOR;
+    $dir = $config['class_dir'].DIRECTORY_SEPARATOR;
+    $file_path = $root.$dir.$file_name;
+    $default_path = $root.$dir.$default_file_name;
+    
+    return (include($file_path) ?? require($default_path));
+}
+
+// Take request data
+function getRequestArray()
+{
+    return $_POST['request'];
+}

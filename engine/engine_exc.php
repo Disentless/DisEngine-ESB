@@ -5,15 +5,19 @@
 namespace DisEngine;
 
 // Base class to distinguish between engine exceptions and system ones
-abstract class DisException extends Exception 
+class DisException extends Exception 
 {
-    
+    // Returns a message to display on the client's side
+    public function getUserMessage()
+    {
+        return $this->getMessage();
+    }
 }
 
 /* 
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
     Function/Method argument exception
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 */
 
 // Function argument is missing or has wrong format
@@ -86,9 +90,9 @@ class MissingPropertyEx extends DisException
 }
 
 /* 
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
     Database exceptions
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 */
 
 // Connection to DB is non-existent
@@ -134,9 +138,9 @@ class MultiQueryFailedEx extends DisException
 }
 
 /* 
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
    Input handling exceptions
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 */
 
 // Request format is wrong
