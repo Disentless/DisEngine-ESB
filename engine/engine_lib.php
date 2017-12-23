@@ -87,14 +87,14 @@ function join2Assoc(
     return $res;
 }
 
-// Loads requested script. If no script is found - loads the default one
+// Loads configuration script. If no script is found - loads the default one
 // $scipt - script name without extension
-function loadScript($script)
+function loadConfigScript($script)
 {
     $file_name = $script.'.php';
     $default_file_name = $script.'.default.php';
     $root = $config['engine_root'].DIRECTORY_SEPARATOR;
-    $dir = $config['class_dir'].DIRECTORY_SEPARATOR;
+    $dir = $config['config_dir'].DIRECTORY_SEPARATOR;
     $file_path = $root.$dir.$file_name;
     $default_path = $root.$dir.$default_file_name;
     
@@ -105,4 +105,15 @@ function loadScript($script)
 function getRequestArray()
 {
     return $_POST['request'];
+}
+
+// Load user class script
+function loadUserClassScript($class_name) 
+{
+    global $config;
+    $file_name = $class_name.'.php';
+    $root = $config['engine_root'].DIRECTORY_SEPARATOR;
+    $dir = $config['class_dir'].DIRECTORY_SEPARATOR;
+    $script_path = $root.$dir.$file_name;
+    require_once $script_path;
 }

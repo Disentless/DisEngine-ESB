@@ -178,7 +178,6 @@ final class Database
                     $this->mysqli->error, 
                     $this->mysqli->errno
                 );
-                return false;
             } else {
                 // All is okay
                 // Update id

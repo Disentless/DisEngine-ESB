@@ -28,20 +28,24 @@ class DBField
     
     //
     protected $value;     // Field value
-    protected $checkF;    // Custom check function (defined separately)
+    private $checkF;    // Custom check function (defined separately)
     
     // Allowed operations.
-    protected $canChange; // (bool) If value can change
-    protected $canNull;   // (bool) If value can be NULL
+    private $canChange; // (bool) If value can change
+    private $canNull;   // (bool) If value can be NULL
     
     // Flags
-    protected $initFlag;  // (bool) If value was assigned
+    private $initFlag;  // (bool) If value was assigned
     
     // Sets external function as a custom check to 
     // run on the value before assigning.
-    public function setCustomCheck(string $val)
+    public function setCustomCheck(string $functionName)
     {
-        $this->checkF = $val;
+        if (!function_exists($functionName))
+        {
+            throw new FunctionNotDefined($functionName);
+        }
+        $this->checkF = $functionName;
     }
     
     // Set $canChange property.
@@ -59,6 +63,7 @@ class DBField
     // Set value 
     public function setValue($val)
     {
+        // If initialized and change is allowed
         $cant_change = !$this->canChange && $this->initFlag;
         if ($cant_change) {
             $error_msg = "Field '{$this->name}' value cannot be changed";
@@ -69,6 +74,7 @@ class DBField
             $error_msg = "Field '{$this->name}' cannot be set to NULL";
             throw new NotNullEx($error_msg);
         }
+        // Running custom check if specified
         if (isset($val) && isset($this->checkF)) {
             $checkFName = $this->checkF;
             if (!$checkFName($val)) {
@@ -81,12 +87,25 @@ class DBField
         $this->initFlag = true;
     }
     
-    // Return string representation of value
-    public function getValue()
+    // Check whether value can be taken.
+    private function checkValueReturn()
     {
         if (!$this->initFlag) {
             throw new NotInializedEx($this->name);
         }
+    }
+    
+    // Return string representation of value
+    public function getValue()
+    {
+        $this->checkValueReturn();
+        return "$this->value";
+    }
+    
+    // Return raw value
+    public function getValueRaw()
+    {
+        $this->checkValueReturn();
         return $this->value;
     }
 }
@@ -111,16 +130,17 @@ class NumData extends DBField
     private $min;       // Minimum value
     private $max;       // Maximum value
     
-    // Set value after running checks
+    // Set value after additional checks
     public function setValue($val)
     {
         try {
-            if (isset($val)
-                && ($val < $this->min 
-                    || $val > $this->max)
-            ) {
-                throw new OutOfRangeEx($val, $this->min, $this->max);
+            if (isset($val)) {
+                $in_range = ($val >= $this->min) && ($val <= $this->max);
+                if (!$in_range) {
+                    throw new OutOfRangeEx($val, $this->min, $this->max);
+                }
             }
+            // Calling on parent to set value
             return parent::setValue($val);
         } catch (DisException $e) {
             throw new InvalidArgumentEx($val, $e);
@@ -160,18 +180,28 @@ class StrData extends DBField
     // Set value after running checks
     public function setValue($val)
     {
-        if (isset($val)) {
-            $len = mb_strlen($val);
-            if (
-                $len < $minLength 
-                || $len > $maxlength 
-                || !preg_match($pattern, $val)
-            ) {
-                // Check failed
-                return false;
+        try {
+            if (isset($val)) {
+                $len = mb_strlen($val);
+                $in_range = ($len >= $this->minLength) 
+                    && ($len <= $this->maxLength);
+                if (!$in_range) {
+                    throw new OutOfRangeEx(
+                        $val, 
+                        $this->minLength, 
+                        $this->maxLength
+                    );
+                }
+                $preg_success = preg_match($this->pattern, $val);
+                if (!$preg_success) {
+                    throw new PattenMismatchEx($val);
+                }
+                
             }
+            return parent::setValue($val);
+        } catch (DisException $e) {
+            throw new InvalidArgumentEx($val, $e);
         }
-        return parent::setValue($val);
     }
     
     // Methods for setting restrictions.
@@ -187,10 +217,11 @@ class StrData extends DBField
         $this->pattern = $pattern;
     }
     
-    // String representation
+    // Override string representation
     public function getValue()
     {
-        $strSafeFormat = preg_replace("/'/", "\'", $this->value);
+        $val = parent::getValue();
+        $strSafeFormat = preg_replace("/'/", "\'", $val);
         $strSafeFormat = preg_replace("/%/", "\%", $strSafeFormat);
         $strSafeFormat = preg_replace("/_/", "\_", $strSafeFormat);
         return "'$strSafeFormat'";
@@ -214,36 +245,43 @@ class DateTimeData extends DBField
     }
     
     // Datetime restrictions
-    private $low;   // Low limit
-    private $high;  // High limit
+    private $lowTimestamp;   // Low limit (timestamp)
+    private $highTimestamp;  // High limit (timestamp)
     
     // Set value
     public function setValue($val)
     {
-        if (isset($val)) {
-            $low_timestamp = strtotime($low);
-            $high_timestamp = strtotime($high);
-            $val_timestamp = strtotime($val);
-            if ($val_timestamp < $low_timestamp 
-                || $val_timestamp > $high_timestamp
-            ) {
-                return false;
+        try {
+            if (isset($val)) {
+                // Value timestamp
+                $val_ts = strtotime($val);
+                $in_range = ($val_ts >= $this->low_timestamp) 
+                    && ($val_ts <= $this->high_timestamp);
+                if (!$in_range) {
+                    throw new OutOfRangeEx(
+                        $val, 
+                        $this->lowTimestamp, 
+                        $this->highTimestamp
+                    );
+                }           
             }
+            return parent::setValue($val);
+        } catch (DisException $e) {
+            throw new InvalidArgumentEx($val, $e);
         }
-        return parent::setValue($val);
     }
     
     // Methods for setting restrictions.
-    public function setRange(int $low, int $high)
+    public function setRangeString(string $low, string $high)
     {
-        $this->low = $low;
-        $this->high = $high;
+        $this->lowTimestamp = strtotime($low);
+        $this->highTimestamp = strtotime($high);
     }
     
-    // String representation
-    public function getValue()
+    public function setRangeTimestamp(int $low, int $high)
     {
-        return "'{$this->value}'";
+        $this->lowTimestamp = $low;
+        $this->highTimestamp = $high;
     }
 }
 

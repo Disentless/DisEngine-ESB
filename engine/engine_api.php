@@ -9,16 +9,8 @@ Should not be modified.
 namespace DisEngine;
 
 // Autoload user classes
-spl_autoload_register(
-    function($class_name) 
-    {
-        global $config;
-        $file_name = $class_name.'.php';
-        $root = $config['engine_root'].DIRECTORY_SEPARATOR;
-        $dir = $config['class_dir'].DIRECTORY_SEPARATOR;
-        require_once $root.$dir.$file_name;
-    }
-);
+// Function is located in engine library
+spl_autoload_register('loadUserScript');
 
 try {
     $requestSuccess = false;
@@ -38,7 +30,7 @@ try {
     }
     
     // Request type mapping to classes that handle data
-    $classMapping = loadScript('class_map');
+    $classMapping = loadConfigScript('class_map');
     
     // Routing to handling class
     $group = $reqArr['info']['group'];      // Data group to affect
@@ -56,13 +48,14 @@ try {
         case 'delete':
             // Creating a new class instance
             $cl = new $className();
-            // Setting data and executing
+            // Setting data
             $exists = ($action != 'add');
             $cl->fillInputData($reqArr['data'], $exists);
+            // Executing action
             if ($action == 'delete') {
-                $cl->delete();
+                $resultData = $cl->delete();
             } else {
-                $cl->update();
+                $resultData = $cl->update();
             }
             break;
         case 'select':

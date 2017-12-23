@@ -35,11 +35,12 @@ class DBRecordGroup
     
     // Return a table join with main table
     protected static function joinTable(
-        string $firstJOIN, 
-        string $table, 
+        string $firstJOIN,
+        string $table,
         string $fk
     ) {
-        $mt = static::$main_class::getTableName();
+        $mc = static::$main_class;
+        $mt = $mc::getTableName();
         return "($firstJOIN LEFT JOIN `$table` ON `$mt`.`id`=`$table`.`$fk`)";
     }
     
@@ -48,7 +49,8 @@ class DBRecordGroup
     protected static function select(string $whereClause = '')
     {
         // Tables projection
-        $mainTable = static::$main_class::getTableName();
+        $mc = static::$main_class;
+        $mainTable = $mc::getTableName();
         $table_selection = "`$mainTable`";
         foreach (static::$sub_classes as $subcl) {
             $table_selection = static::joinTable(
@@ -59,68 +61,56 @@ class DBRecordGroup
         }
         $where = (strlen($whereClause) != 0) ? "WHERE $whereClause" : '';
         // Run query to get ID's of main records that satisfy conditions
-        $query = <<<SQL
+        $query = "
             SELECT DISTINCT `$mainTable`.`id` 
             FROM $table_selection 
             $whereClause
-        SQL;
+        ";
         
         // Executing query
         global $db;
-        if ($result = $db->query($query)) {
-            // List of all IDs to use later
-            $mainrec_idlist = $result->fetch_all(MYSQLI_NUM);
+        $result = $db->query($query);
+        // List of all IDs to use later
+        $mainrec_idlist = $result->fetch_all(MYSQLI_NUM);
+
+        // Output array
+        $out = [];
+
+        // Running though each ID and
+        // - taking info from main table
+        // - taking info from each child table
+        // - adding class instance to output
+        foreach ($mainrec_idlist as $recID) {
+            $query = "SELECT * FROM `$mainTable` WHERE `id` = $recID";
+            $main_data = $db->query($query)->fetch_assoc();
             
-            // Output array
-            $out = [];
-            
-            // Running though each ID and
-            // - taking info from main table
-            // - taking info from each child table
-            // - adding class instance to output
-            foreach ($mainrec_idlist as $recID) {
-                $query = "SELECT * FROM `$mainTable` WHERE `id` = $recID";
-                if ($result = $db->query($query)) {
-                    $main_data = $result->fetch_assoc();
-                    
-                    // Rounding up each vector table
-                    $vectors = [];
-                    foreach (static::$sub_classes as $table_name => $sub_info) {
-                        $cl_name = $sub_info['class'];
-                        $fk = $sub_info['fk'];
-                        // Executing query to get vector info
-                        $query = <<<SQL
-                            SELECT * 
-                            FROM `$table_name` 
-                            WHERE `$fk` = $recID
-                        SQL;
-                        if ($result = $db->query($query)) {
-                            $list = [];
-                            while($list[] = $result->fetch_assoc());
-                            $vectors[$table_name] = $list;
-                        } else {
-                            return false;
-                        }
-                    }
-                    // Creating DBRecordGroup's child instance
-                    $main_clname = static::class;
-                    $main_cl = new $main_clname();
-                    $main_cl->fillMain($main_data, true);
-                    $main_cl->fillData($vectors);
-                    $out[] = $main_cl;
-                } else {
-                    // Something went wrong
-                    // TO-DO: Make a log system btw (before i forget)
-                    return false;
+            // Rounding up each vector table
+            $vectors = [];
+            foreach (static::$sub_classes as $table_name => $sub_info) {
+                $cl_name = $sub_info['class'];
+                $fk = $sub_info['fk'];
+                // Executing query to get vector info
+                $query = "
+                    SELECT * 
+                    FROM `$table_name` 
+                    WHERE `$fk` = $recID
+                ";
+                $result = $db->query($query);
+                $list = [];
+                while ($row = $result->fetch_assoc()) {
+                    $list[] = $row;
                 }
+                $vectors[$table_name] = $list;
             }
-            
-            // All is okay
-            return $out;
-        } else {
-            // Something went wrong
-            return false;
+            // Creating DBRecordGroup instance
+            $main_clname = static::class;
+            $main_cl = new $main_clname();
+            $main_cl->fillMain($main_data, true);
+            $main_cl->fillData($vectors);
+            $out[] = $main_cl;
         }
+
+        return $out;
     }
     
     // Runs SELECT and returns the result of it
@@ -165,13 +155,20 @@ class DBRecordGroup
         return ($this->init_flag = $this->main->fillData($data, true));
     }
     
+    private function checkMainSet()
+    {
+        // Cannot set children until main record is set
+        if (!$this->init_flag || !this->main) {
+            throw new MainNotSetEx(static::$main_class);
+        }
+    }
+    
     // Rewrites child info
     // $data - assoc array formatted as follows:
     // [<sub table name>] - array of assoc arrays with child class properties
     public function fillData(array $data)
     {
-        // Cannot set children until main record is set
-        if (!$this->init_flag) return false;
+        $this->checkMainSet();
         
         $this->resetSub();
         foreach ($data as $table => $records) {
@@ -190,8 +187,7 @@ class DBRecordGroup
     // or main record properties. Only appends sub classes.
     public function appendData(array $data)
     {
-        // Cannot set children until main record is set
-        if (!$this->init_flag) return false;
+        $this->checkMainSet();
         
         // Sub instances
         foreach ($data as $table => $records) {
@@ -206,36 +202,36 @@ class DBRecordGroup
         }
     }
     
-    /* Public */
-    
     // Flush changes to database in a single transaction
     public function update()
     {
-        // Cannot operate on empty record
-        if (!$this->init_flag) return false;
+        $this->checkMainSet();
         
-        if (!isset($this->main)) return false;
         // Starting database transation
         global $db;
         $db->startTransaction();
         
-        // Updating main record first
-        if (!$this->main->update()) {
+        try {
+            // Updating main record first
+            $this->main->update();
+            // Updating each category
+            foreach ($this->data as $table => $arr) {
+                // Each instance
+                foreach ($arr as $cl) {
+                    if (!$cl->update()) {
+                        // Update for one instance failed - revert all changes
+                        $db->rollback();
+                        return false;
+                    }
+                }
+            }
+        } catch (DisException $e) {
+            
+        } finally {
             $db->rollback();
             return false;
         }
         
-        // Updating each category
-        foreach ($this->data as $table => $arr) {
-            // Each instance
-            foreach ($arr as $cl) {
-                if (!$cl->update()) {
-                    // Update for one instance failed - revert all changes
-                    $db->rollback();
-                    return false;
-                }
-            }
-        }
         // Commiting changes
         $db->finishTransaction();
         
@@ -247,21 +243,14 @@ class DBRecordGroup
     // or by overridding this method.
     public function delete()
     {
-        // Cannot operate on empty record
-        if (!$this->init_flag) return false;
-        
-        if (!$this->main->delete()) {
-            // Database restrictions on main record (probably RESTRICT)
-            return false;
-        }
-        return true;
+        $this->checkMainSet();
+        $this->main->delete();
     }
     
     // Get main record instance
     public function getMain()
     {
-        // Cannot operate on empty record
-        if (!$this->init_flag) return false;
+        $this->checkMainSet();
         
         return $this->main;
     }
@@ -269,8 +258,7 @@ class DBRecordGroup
     // Get child classes by table or all
     public function getChild(string $table = null)
     {
-        // Cannot operate on empty record
-        if (!$this->init_flag) return false;
+        $this->checkMainSet();
         
         if (isset($table)) {
             return $this->data[$table];

@@ -25,7 +25,7 @@ class InvalidArgumentEx extends DisException
 {
     function __construct($arg = null, Exception $prev = null){
         $msg = "Argument $arg value cannot be accepted";
-        parent::__construct($msg, 0, $prev);
+        parent::__construct($msg, 0x00, $prev);
     }
 }
 
@@ -40,7 +40,7 @@ class NotInitializedEx extends DisException
 {
     function __construct($name = null, Exception $prev = null){
         $msg = "Accessing a non-initialized value: '$name'";
-        parent::__construct($msg, 2, $prev);
+        parent::__construct($msg, 0x02, $prev);
     }
 }
 
@@ -72,15 +72,18 @@ class CustomCheckEx extends DisException
 class OutOfRangeEx extends DisException
 {
     function __construct($val, $min, $max, $Exception $prev = null) {
-        $msg = "Value $val is out of required range: (min)$min - (max)$max";
-        parent::__construct($msg, 7, $prev);
+        $msg = "Value '$val' is out of required range: (min)$min - (max)$max";
+        parent::__construct($msg, 0x07, $prev);
     }
 }
 
 // String doesn't match the pattern
 class PatternMismatchEx extends DisException
 {
-    
+    function __construct($val, $Exception $prev = null) {
+        $msg = "Value '$val' doesn't match pattern";
+        parent::__construct($msg, 0x08, $prev);
+    }
 }
 
 // Property or method doesn't exist
@@ -189,4 +192,28 @@ class ClassNotExistsEx extends DisException
 class RequestExecutionEx extends DisException
 {
     
+}
+
+/* 
+--------------------------------------------------------------------------------
+   Configuration exceptions
+--------------------------------------------------------------------------------
+*/
+
+// User-defined function does not exist
+class FunctionNotDefinedEx extends DisException
+{
+    function __construct($arg = null, Exception $prev = null){
+        $msg = "Function '$arg' is not defined";
+        parent::__construct($msg, 0x30, $prev);
+    }
+}
+
+// Filling data in wrong order
+class MainNotSetEx extends DisException
+{
+    function __construct($arg = null, Exception $prev = null){
+        $msg = "Main record '$arg' is not set";
+        parent::__construct($msg, 0x31, $prev);
+    }
 }
