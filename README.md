@@ -19,7 +19,7 @@ For each database table a separate class is required. Each class' fields should 
 After a class' method 'update' or 'delete' succeeds the event system is notified.
 
 ### Event raising
-The event system is notified after data changes. 'raise' method accepts class name and an event type. Actual raised event name will be: <className>-<eventType>, where <className> is the name of representing class for some DB table (class name could be different from actual Db table it represents) and <eventType> is one of 3: 'added', 'changed', 'deleted'.
+The event system is notified after data changes. 'raise' method accepts class name and an event type. Actual raised event name will be: \<className>-\<eventType>, where \<className> is the name of representing class for some DB table (class name could be different from actual Db table it represents) and \<eventType> is one of 3: 'added', 'changed', 'deleted'.
 
 ### Event processing
 Each client will have one or more EventStream connections with the server. For each connection a certain number of subsriptions will be provided by the client. Subsriptions decide which of server events the client is notified of.
@@ -47,7 +47,7 @@ $str_field->setLengthRange($min, $max);                     // Min-max length of
 
 // DataTime class - DateTimeData. Keeps string representation of data type
 $dt_field = new DateTimeData('updated', 'DATETIME');    // Creates a field of DATETIME type
-$dt_field->setRange('2010-01-01', '2015-01-01');        // Sets data range   
+$dt_field->setRangeString('2010-01-01', '2015-01-01');  // Sets data range 
 
 // All classes
 $f->setCustomCheck('foo');      // Specify a custom value check function
@@ -55,6 +55,7 @@ $f->allowChange(true/false);    // Set whether or not value of this field can be
 $f->allowNull(true/false);      // Set whether or not NULL value is supported
 $f->setValue($val);             // Set new value for this field. Returns false on fail
 $f->getValue();                 // Get string represenstation of current value
+$f->getValueRaw();              // Get value without additional edits
 ```
 Field types should reflect the types used in DB tables, otherwise database queries will fail. Default values for fields can be set in config file.
 
@@ -64,9 +65,9 @@ It is possible to expand the number of classes (beyond default 3) manually if re
 Represents a base class for one record in DB table. For each DB table a new class should be inherited from this one. Typical class description is as follows:
 ```
 <?php
-// *Creating new class to represent Accounts table. PHP file name should reflect the class name. In this case 'Account.php'*
+// *Creating new class to represent Accounts table. PHP file name should reflect the class name. 
+// In this case 'Account.php'*
 
-require_once 'engine_record.php';
 // Inherit base class
 class Account extends DisEngine\DBRecord 
 {
@@ -113,7 +114,6 @@ class Account extends DisEngine\DBRecord
     // ...
 }
 ```
-If following PSR-2 coding style \[1] can be ommited. Initialization file already does include this base class.
 
 Working with this class:
 ```
@@ -140,7 +140,8 @@ $all_accounts = Account::get_all();
 Represents a base class for working with records which have dependant records in other tables. This class uses each class for each table it supports. Typical description is as follows:
 ```
 <?php
-// Creating new class to represent Groups table. PHP file name should reflect the class name. In this case 'GroupList.php';
+// Creating new class to represent Groups table. PHP file name should reflect the class name. 
+// In this case 'GroupList.php';
 // Groups table has GroupMember vector table that's used to contain group member list.
 // GroupMember table is represented by GroupMember class (class name can be different).
 
